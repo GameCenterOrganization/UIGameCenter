@@ -13,6 +13,12 @@ const HomeScreen = ({ navigation }) => {
         title="Ir a Configuración"
         onPress={() => navigation.navigate('Settings')}
       />
+
+      <Button
+        title="Ir a Loggear"
+        onPress={() => navigation.navigate('Login')}
+      />
+
     </View>
   );
 };
