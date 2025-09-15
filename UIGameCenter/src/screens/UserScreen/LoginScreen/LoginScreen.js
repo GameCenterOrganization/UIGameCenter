@@ -44,7 +44,7 @@ export default function LoginScreen({ navigation }) {
    
     setTimeout(() => {
       setLoading(false);
-      // Aqui ingresar la logica con firbase (navigation, API call, etc.)
+      // Aqui ingresar la logica con firebase (navigation, API call, etc.)
       navigation.navigate("Home");
 
       console.log("Login enviado", data);
@@ -90,12 +90,12 @@ export default function LoginScreen({ navigation }) {
                 <MaterialCommunityIcons name="gamepad-variant-outline" size={28} color="#fff" />
               </View>
               <Text style={LoginStyles.brandText}>
-                <Text style={{ color: "#f46ff0" }}>Game</Text>
+                <Text style={{ color: "#a85dfdff" }}>Game</Text>
                 <Text style={{ color: "#9b7aff" }}>Center</Text>
               </Text>
             </View>
 
-            <Text style={LoginStyles.headline}>Únete a la comunidad gamer más grande</Text>
+            <Text style={LoginStyles.headline}>Únete a nuestra comunidad gamer</Text>
             <Text style={LoginStyles.subText}>
               Descubre juegos, compara precios, conecta con otros gamers y encuentra las mejores ofertas en un solo lugar.
             </Text>
@@ -104,7 +104,7 @@ export default function LoginScreen({ navigation }) {
               {/* Imagen decorativa: puedes reemplazar por Image si tienes archivo */}
               <Image
                 source={{
-                  uri: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=60",
+                  uri: "https://images.unsplash.com/photo-1563089145-599997674d42?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
                 }}
                 style={LoginStyles.previewImage}
                 resizeMode="cover"
@@ -113,15 +113,15 @@ export default function LoginScreen({ navigation }) {
 
             <View style={LoginStyles.statsRow}>
               <View style={LoginStyles.stat}>
-                <Text style={LoginStyles.statNumber}>50K+</Text>
+               <Text style={LoginStyles.statNumber}>COMPARA</Text>
                 <Text style={LoginStyles.statLabel}>Juegos</Text>
               </View>
               <View style={LoginStyles.stat}>
-                <Text style={LoginStyles.statNumber}>1.2M+</Text>
+                <Text style={LoginStyles.statNumber}>COMUNIDAD</Text>
                 <Text style={LoginStyles.statLabel}>Usuarios</Text>
               </View>
               <View style={LoginStyles.stat}>
-                <Text style={LoginStyles.statNumber}>890K</Text>
+                <Text style={LoginStyles.statNumber}>INFORMATE</Text>
                 <Text style={LoginStyles.statLabel}>Reviews</Text>
               </View>
             </View>
@@ -165,7 +165,7 @@ export default function LoginScreen({ navigation }) {
                     <View style={LoginStyles.inputRow}>
                       <Feather name="mail" size={16} color="#9aa0a6" style={{ marginRight: 10 }} />
                       <TextInput
-                        placeholder="tu@email.com"
+                        placeholder="ejemplo123@email.com"
                         placeholderTextColor="#6b7a84"
                         style={[LoginStyles.input, errors.email && LoginStyles.inputError]}
                         onBlur={onBlur}
@@ -186,7 +186,7 @@ export default function LoginScreen({ navigation }) {
                 control={control}
                 rules={{
                   required: "La contraseña es requerida",
-                  minLength: { value: 6, message: "Mínimo 6 caracteres" },
+                  minLength: { value: 8, message: "Mínimo 8 caracteres" },
                 }}
                 name="password"
                 render={({ field: { onChange, onBlur, value } }) => (
@@ -220,7 +220,7 @@ export default function LoginScreen({ navigation }) {
                 disabled={loading}
               >
                 <LinearGradient
-                  colors={["#d153ff", "#ff599f"]}
+                  colors={["#875ff5", "#9b7aff"]}
                   start={[0, 0]}
                   end={[1, 0]}
                   style={LoginStyles.loginGradient}
