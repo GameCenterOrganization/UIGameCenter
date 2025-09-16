@@ -1,5 +1,5 @@
 // LoginScreen.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -17,6 +17,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import { MaterialCommunityIcons, FontAwesome, Feather } from "@expo/vector-icons";
 import { useForm, Controller } from "react-hook-form";
 import { LoginStyles } from "./LoginStyles.js";
+
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../firebaseConfig";
+import * as Google from "expo-auth-session/providers/google";
+import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
+import { makeRedirectUri } from "expo-auth-session";
 
 /**
  * LoginScreen
@@ -39,29 +45,53 @@ export default function LoginScreen({ navigation }) {
     defaultValues: { email: "", password: "" },
   });
 
-  const onSubmit = (data) => {
+  const onSubmit = async (data) => {
     setLoading(true);
-   
-    setTimeout(() => {
-      setLoading(false);
-      // Aqui ingresar la logica con firebase (navigation, API call, etc.)
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
+      console.log("Usuario logueado:", userCredential.user);
       navigation.navigate("Home");
-
-      console.log("Login enviado", data);
-      alert("Login enviado (simulado): " + JSON.stringify(data));
-    }, 1400);
+    } catch (error) {
+      console.error("Error al iniciar sesión:", error.message);
+      alert(error.message);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+    clientId: "1079695687490-5kno78vsammc54ib8ovn9v0fek9e3njq.apps.googleusercontent.com",
+    redirectUri: makeRedirectUri({ useProxy: true }),
+  });
+
+  useEffect(() => {
+    const loginWithGoogle = async () => {
+      if (response?.type === "success") {
+        const { id_token } = response.params;
+        const credential = GoogleAuthProvider.credential(id_token);
+        try {
+          const userCredential = await signInWithCredential(auth, credential);
+          console.log("Usuario Google:", userCredential.user);
+          navigation.navigate("Home");
+        } catch (err) {
+          console.error("Error Google Sign-In:", err);
+          alert(err.message);
+        }
+      }
+    };
+    loginWithGoogle();
+  }, [response]);
 
   const onGoogle = () => {
-    alert("Iniciar con Google (simulado)");
+    promptAsync();
   };
-
   const onGithub = () => {
     alert("Iniciar con GitHub (simulado)");
   };
 
   const onRegister = () => {
     alert("Ir a registro (simulado)");
+    navigation.navigate("Register");
   };
 
   const onGuest = () => {
@@ -113,7 +143,7 @@ export default function LoginScreen({ navigation }) {
 
             <View style={LoginStyles.statsRow}>
               <View style={LoginStyles.stat}>
-               <Text style={LoginStyles.statNumber}>COMPARA</Text>
+                <Text style={LoginStyles.statNumber}>COMPARA</Text>
                 <Text style={LoginStyles.statLabel}>Juegos</Text>
               </View>
               <View style={LoginStyles.stat}>
