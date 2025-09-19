@@ -1,4 +1,4 @@
-// LoginScreen.js
+
 import React, { useState, useEffect } from "react";
 import {
     View,
@@ -20,9 +20,6 @@ import { RegisterStyle } from "./RegisterStyle.js";
 
 //Firebase implementation
 
-
-
-
 import { auth, googleProvider } from "../firebaseConfig.js";
 import { createUserWithEmailAndPassword, signInWithCredential, GoogleAuthProvider, OAuthProvider } from "firebase/auth";
 import * as Google from "expo-auth-session/providers/google";
@@ -37,13 +34,8 @@ import { makeRedirectUri } from "expo-auth-session";
  * 
  */
 
-
-
-
-
 export default function RegisterScreen({ navigation }) {
 
-   
     const { width } = useWindowDimensions();
     const isNarrow = width < 480;
 
@@ -76,79 +68,76 @@ export default function RegisterScreen({ navigation }) {
         return { label: "Fuerte", color: "green" };
     };
 
+    const onSubmit = async (data) => {
+        setLoading(true);
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+            const user = userCredential.user;
+            const idToken = await user.getIdToken();
 
-
-const onSubmit = async (data) => {
-    setLoading(true);
-    try {
-        const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-        const user = userCredential.user;
-        const idToken = await user.getIdToken();
-
-        // Enviar datos al backend para guardar el usuario en la BD
-        fetch("http://localhost:8080/api/users/register", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${idToken}`
-            },
-            body: JSON.stringify({
-                firebaseUid: user.uid,
-                email: user.email,
-                // Puedes agregar más datos del formulario si lo necesitas
-                username: data.username,
-                firstName: data.firstName,
-                lastName: data.lastName,
-                birthDate: data.birthDate,
-                bio: data.bio,
-                profilePic: data.profilePic
+            fetch("http://localhost:8080/api/users/register", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${idToken}`
+                },
+                body: JSON.stringify({
+                    firebaseUid: user.uid,
+                    email: user.email,
+                
+                    username: data.username,
+                    firstName: data.firstName,
+                    lastName: data.lastName,
+                    birthDate: data.birthDate,
+                    bio: data.bio,
+                    profilePic: data.profilePic
+                })
             })
-        })
-        .then(res => res.json())
-        .then(data => {
-            console.log("Respuesta del backend:", data);
-        })
-        .catch(err => {
-            console.error("Error enviando datos al backend:", err);
-        });
+                .then(res => res.json())
+                .then(data => {
+                    console.log("Respuesta del backend:", data);
+                })
+                .catch(err => {
+                    console.error("Error enviando datos al backend:", err);
+                });
 
-        navigation.navigate("Home");
-    } catch (error) {
-        console.error("Error al registrar usuario:", error.message);
-        alert(error.message);
-    } finally {
-        setLoading(false);
-    }
-};
+            navigation.navigate("Home");
+        } catch (error) {
+            console.error("Error al registrar usuario:", error.message);
+            alert(error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
- const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+    const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
         webClientId: "1079695687490-5kno78vsammc54ib8ovn9v0fek9e3njq.apps.googleusercontent.com",
         androidClientId: "1079695687490-l09vcqsqj4dq6i7tkvgagp5drpiui889.apps.googleusercontent.com",
         iosClientId: "1079695687490-pmmbcr6ck5va5854c1vi0aus3pocrm95.apps.googleusercontent.com",
         redirectUri: makeRedirectUri({ useProxy: true }),
     });
-   
 
-   useEffect(() => {
-    if (response?.type === "success") {
-      const { id_token } = response.params;
 
-      const credential = GoogleAuthProvider.credential(id_token);
-      signInWithCredential(auth, credential)
-        .then((userCredential) => {
-          console.log("Usuario Google registrado:", userCredential.user);
-          navigation.navigate("Home");
-        })
-        .catch((err) => {
-          console.error("Error autenticando con Firebase:", err);
-          alert(err.message);
-        });
-    }
-  }, [response]);
+    useEffect(() => {
+        if (response?.type === "success") {
+            const { id_token } = response.params;
 
-  const onGoogle = async () => {
-    await promptAsync();
-  };
+            const credential = GoogleAuthProvider.credential(id_token);
+            signInWithCredential(auth, credential)
+                .then((userCredential) => {
+                    console.log("Usuario Google registrado:", userCredential.user);
+                    navigation.navigate("Home");
+                })
+                .catch((err) => {
+                    console.error("Error autenticando con Firebase:", err);
+                    alert(err.message);
+                });
+        }
+    }, [response]);
+
+    const onGoogle = async () => {
+        await promptAsync();
+    };
 
     const onGithub = async () => {
         try {
@@ -397,10 +386,10 @@ const onSubmit = async (data) => {
                                     <Text style={RegisterStyle.socialText}>Google</Text>
                                 </TouchableOpacity>
 
-                                <TouchableOpacity style={RegisterStyle.socialBtn} onPress={onGithub}>
+                                {/*   <TouchableOpacity style={RegisterStyle.socialBtn} onPress={onGithub}>
                                     <FontAwesome name="github" size={18} color="#7a7a7a" />
                                     <Text style={RegisterStyle.socialText}>GitHub</Text>
-                                </TouchableOpacity>
+                                </TouchableOpacity>}*/}
                             </View>
 
                             {/* Links */}

@@ -1,10 +1,27 @@
 import React from 'react';
 import { View, Text, Button, StyleSheet } from 'react-native';
+import { useAuth } from '../screens/UserScreen/Auth/AuthContext';
+
 
 const HomeScreen = ({ navigation }) => {
+  const { currentUser, logout } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+     navigation.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      });
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error.message);
+    }
+  };
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Pantalla de Inicio</Text>
+      <Text>Bienvenido, {currentUser?.email}</Text>
+
       <Button
         title="Ir a Perfil"
         onPress={() => navigation.navigate('Profile')}
@@ -13,18 +30,12 @@ const HomeScreen = ({ navigation }) => {
         title="Ir a Configuración"
         onPress={() => navigation.navigate('Settings')}
       />
-
-      <Button
-        title="Ir a Loggear"
-        onPress={() => navigation.navigate('Login')}
-      />
-
-      <Button
-        title="Ir al perfil de usuario"
-        onPress={() => navigation.navigate('Profile')}
-      />
-
+      
+     
+      <Button title="Cerrar Sesión" onPress={handleLogout} color="#ff3b30" />
+      
     </View>
+   
   );
 };
 
