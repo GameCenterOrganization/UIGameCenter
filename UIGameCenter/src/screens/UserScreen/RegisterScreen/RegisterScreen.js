@@ -32,6 +32,9 @@ import { makeRedirectUri } from "expo-auth-session";
  * LoginScreen
  * - Componente autocontenido
  * - Usa react-hook-form para validación
+ * 
+ * 
+ * 
  */
 
 
@@ -75,44 +78,77 @@ export default function RegisterScreen({ navigation }) {
 
 
 
-    const onSubmit = async (data) => {
-        setLoading(true);
-        try {
-            const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-            console.log("Usuario registrado:", userCredential.user);
-            navigation.navigate("Home");
-        } catch (error) {
-            console.error("Error al registrar usuario:", error.message);
-            alert(error.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
- const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-        clientId: "1079695687490-5kno78vsammc54ib8ovn9v0fek9e3njq.apps.googleusercontent.com",
-        redirectUri: makeRedirectUri({ useProxy: true }), // importante para Expo
-    });
-
-   const onGoogle = async () => {
+const onSubmit = async (data) => {
+    setLoading(true);
     try {
-        const result = await promptAsync();
-        console.log("Google result:", result);
-        if (result.type === "success") {
-            const { id_token } = result.params;
-            console.log("ID Token:", id_token);
-            const credential = GoogleAuthProvider.credential(id_token);
-            const userCredential = await signInWithCredential(auth, credential);
-            console.log("Usuario Google:", userCredential.user);
-            navigation.navigate("Home");
-        } else {
-            console.log("Google login not successful:", result);
-        }
-    } catch (err) {
-        console.error("Error en Google login:", err);
-        alert(err.message);
+        const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+        const user = userCredential.user;
+        const idToken = await user.getIdToken();
+
+        // Enviar datos al backend para guardar el usuario en la BD
+        fetch("http://localhost:8080/api/users/register", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${idToken}`
+            },
+            body: JSON.stringify({
+                firebaseUid: user.uid,
+                email: user.email,
+                // Puedes agregar más datos del formulario si lo necesitas
+                username: data.username,
+                firstName: data.firstName,
+                lastName: data.lastName,
+                birthDate: data.birthDate,
+                bio: data.bio,
+                profilePic: data.profilePic
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            console.log("Respuesta del backend:", data);
+        })
+        .catch(err => {
+            console.error("Error enviando datos al backend:", err);
+        });
+
+        navigation.navigate("Home");
+    } catch (error) {
+        console.error("Error al registrar usuario:", error.message);
+        alert(error.message);
+    } finally {
+        setLoading(false);
     }
 };
+
+ const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+        webClientId: "1079695687490-5kno78vsammc54ib8ovn9v0fek9e3njq.apps.googleusercontent.com",
+        androidClientId: "1079695687490-l09vcqsqj4dq6i7tkvgagp5drpiui889.apps.googleusercontent.com",
+        iosClientId: "1079695687490-pmmbcr6ck5va5854c1vi0aus3pocrm95.apps.googleusercontent.com",
+        redirectUri: makeRedirectUri({ useProxy: true }),
+    });
+   
+
+   useEffect(() => {
+    if (response?.type === "success") {
+      const { id_token } = response.params;
+
+      const credential = GoogleAuthProvider.credential(id_token);
+      signInWithCredential(auth, credential)
+        .then((userCredential) => {
+          console.log("Usuario Google registrado:", userCredential.user);
+          navigation.navigate("Home");
+        })
+        .catch((err) => {
+          console.error("Error autenticando con Firebase:", err);
+          alert(err.message);
+        });
+    }
+  }, [response]);
+
+  const onGoogle = async () => {
+    await promptAsync();
+  };
 
     const onGithub = async () => {
         try {

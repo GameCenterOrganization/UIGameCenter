@@ -19,6 +19,11 @@ const HomeScreen = ({ navigation }) => {
         onPress={() => navigation.navigate('Login')}
       />
 
+      <Button
+        title="Ir al perfil de usuario"
+        onPress={() => navigation.navigate('Profile')}
+      />
+
     </View>
   );
 };

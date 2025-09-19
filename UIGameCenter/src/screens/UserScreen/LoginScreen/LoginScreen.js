@@ -45,20 +45,41 @@ export default function LoginScreen({ navigation }) {
     defaultValues: { email: "", password: "" },
   });
 
-  const onSubmit = async (data) => {
-    setLoading(true);
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
-      console.log("Usuario logueado:", userCredential.user);
-      navigation.navigate("Home");
-    } catch (error) {
-      console.error("Error al iniciar sesión:", error.message);
-      alert(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+const onSubmit = async (data) => {
+  setLoading(true);
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
+    const user = userCredential.user;
+    const idToken = await user.getIdToken();
 
+    // LOG para ver el token y los datos del usuario
+    console.log("ID Token:", idToken);
+    console.log("Usuario Firebase:", user.email);
+
+    // Enviar datos al backend
+    fetch("http://localhost:8080/api/users/profile", {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${idToken}`,
+        "Content-Type": "application/json"
+      }
+    })
+    .then(res => res.json())
+    .then(data => {
+      console.log("Respuesta del backend:", data);
+    })
+    .catch(err => {
+      console.error("Error conectando al backend:", err);
+    });
+
+    navigation.navigate("Home");
+  } catch (error) {
+    console.error("Error al iniciar sesión:", error.message);
+    alert(error.message);
+  } finally {
+    setLoading(false);
+  }
+};
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     clientId: "1079695687490-5kno78vsammc54ib8ovn9v0fek9e3njq.apps.googleusercontent.com",
     redirectUri: makeRedirectUri({ useProxy: true }),
