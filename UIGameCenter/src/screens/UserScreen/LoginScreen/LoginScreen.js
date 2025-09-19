@@ -52,11 +52,10 @@ const onSubmit = async (data) => {
     const user = userCredential.user;
     const idToken = await user.getIdToken();
 
-    // LOG para ver el token y los datos del usuario
     console.log("ID Token:", idToken);
     console.log("Usuario Firebase:", user.email);
 
-    // Enviar datos al backend
+    
     fetch("http://localhost:8080/api/users/profile", {
       method: "GET",
       headers: {
@@ -152,7 +151,7 @@ const onSubmit = async (data) => {
             </Text>
 
             <View style={LoginStyles.previewImageContainer}>
-              {/* Imagen decorativa: puedes reemplazar por Image si tienes archivo */}
+              {/**/}
               <Image
                 source={{
                   uri: "https://images.unsplash.com/photo-1563089145-599997674d42?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
@@ -287,24 +286,24 @@ const onSubmit = async (data) => {
                 </LinearGradient>
               </TouchableOpacity>
 
-              {/* Divider with text */}
+              {/* */}
               <View style={LoginStyles.dividerRow}>
                 <View style={LoginStyles.dividerLine} />
                 <Text style={LoginStyles.dividerText}>O CONTINÚA CON</Text>
                 <View style={LoginStyles.dividerLine} />
               </View>
 
-              {/* Social buttons */}
+              {/*  */}
               <View style={LoginStyles.socialRow}>
                 <TouchableOpacity style={LoginStyles.socialBtn} onPress={onGoogle}>
                   <FontAwesome name="google" size={18} color="#7a7a7a" />
                   <Text style={LoginStyles.socialText}>Google</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={LoginStyles.socialBtn} onPress={onGithub}>
+                {/*<TouchableOpacity style={LoginStyles.socialBtn} onPress={onGithub}>
                   <FontAwesome name="github" size={18} color="#7a7a7a" />
                   <Text style={LoginStyles.socialText}>GitHub</Text>
-                </TouchableOpacity>
+                </TouchableOpacity>*/}
               </View>
 
               {/* Links */}

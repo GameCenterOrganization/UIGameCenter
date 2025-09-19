@@ -1,4 +1,5 @@
 {
+  
   "expo": {
     "name": "UIGameCenter",
     "slug": "UIGameCenter",
@@ -25,6 +26,7 @@
       "edgeToEdgeEnabled": true
     },
     "web": {
+      "scheme": "uigamecenter",
       "favicon": "./assets/favicon.png"
     }
   }
