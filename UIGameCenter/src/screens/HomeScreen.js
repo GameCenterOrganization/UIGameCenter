@@ -5,6 +5,7 @@ import { useAuth } from '../screens/UserScreen/Auth/AuthContext';
 import Header from '../components/Header';
 import Categories from '../components/Categories';
 import GameCard from '../components/GameCard';
+import FloatingChat from '../components/FloatingChat';
 
 const { width } = Dimensions.get('window');
 
@@ -265,7 +266,10 @@ const HomeScreen = ({ navigation }) => {
       ) : (
         Content
       )}
+      {/* Floating chat: siempre al final */}
+      <FloatingChat visible={true} fullScreen={false} />
     </View>
+    
   );
 };
 
