@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Dimensions, FlatList, ScrollView, Platform, ActivityIndicator, Button } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Dimensions, FlatList, ScrollView, Platform, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../screens/UserScreen/Auth/AuthContext';
 import Header from '../components/Header';
@@ -33,19 +33,7 @@ const HomeScreen = ({ navigation }) => {
 
   const searchInputRef = useRef(null);
   const debouncedSearchText = useDebounce(searchText, 300);
-  const { currentUser, logout } = useAuth();
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Login' }],
-      });
-    } catch (error) {
-      console.error("Error al cerrar sesión:", error.message);
-    }
-  };
+  const { currentUser } = useAuth();
 
   const fetchGames = useCallback(async (searchTerm = '') => {
     setLoading(true);
@@ -167,8 +155,11 @@ const HomeScreen = ({ navigation }) => {
 
   const Content = useMemo(() => (
     <>
-      <Header activeTab="Búsqueda" />
-      <Button title="Cerrar Sesión" onPress={handleLogout} color="#ff3b30" />
+      <Header activeTab="Búsqueda" 
+        searchText={searchText} 
+        onSearchChange={handleSearchTextChange} 
+        onClearSearch={handleClearSearch} 
+      />
 
       <LinearGradient
         colors={['#6b46c1', '#06b6d4']}
@@ -178,34 +169,6 @@ const HomeScreen = ({ navigation }) => {
       >
         <Text style={styles.heroText}>Tu plataforma gamer definitiva</Text>
       </LinearGradient>
-
-      <View style={styles.searchContainer}>
-        <View style={styles.searchInputContainer}>
-          <TextInput
-            ref={searchInputRef}
-            style={styles.mainSearchInput}
-            placeholder="Buscar juegos, géneros, plataformas..."
-            placeholderTextColor="#888"
-            value={searchText}
-            onChangeText={handleSearchTextChange}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-            blurOnSubmit={false}
-          />
-          {searchText.length > 0 && (
-            <TouchableOpacity style={styles.clearButton} onPress={handleClearSearch}>
-              <Text style={styles.clearButtonText}>✕</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        <TouchableOpacity
-          style={styles.filtersButton}
-          onPress={() => Alert.alert('Filtros', 'Filtros avanzados próximamente')}
-        >
-          <Text style={styles.filtersText}>🔽 Filtros</Text>
-        </TouchableOpacity>
-      </View>
 
       <View style={styles.categoriesSection}>
         <Text style={styles.sectionTitle}>Categorías</Text>
@@ -286,7 +249,7 @@ const HomeScreen = ({ navigation }) => {
   ), [
     searchText, filteredGames, loading, error, selectedCategory, debouncedSearchText,
     handleSearchTextChange, handleClearSearch, handleCategorySelect, handleGameDetails,
-    handleGameBuy, renderGameItem, cardWidth, handleLogout
+    handleGameBuy, renderGameItem, cardWidth
   ]);
 
   return (
@@ -326,46 +289,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-    gap: 12,
-  },
-  searchInputContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#2a2a3e',
-    borderRadius: 8,
-    paddingRight: 8,
-  },
-  mainSearchInput: {
-    flex: 1,
-    color: 'white',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 14,
-  },
-  clearButton: {
-    padding: 8,
-    borderRadius: 4,
-  },
-  clearButtonText: {
-    color: '#888',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  filtersButton: {
-    backgroundColor: '#2a2a3e',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  filtersText: {
-    color: 'white',
-    fontSize: 14,
   },
   categoriesSection: {
     marginBottom: 24,

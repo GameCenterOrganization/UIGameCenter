@@ -46,54 +46,62 @@ export default function UserProfileScreen({ navigation }) {
     tags: ["Pro Gamer", "Amigable", "Estratega"],
   });
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        setLoading(false);
-        Alert.alert(
-          "Sesión requerida",
-          "Debes iniciar sesión para ver tu perfil.",
-          [{ text: "OK", onPress: () => navigation.replace("Login") }],
-          { cancelable: false }
-        );
-        return;
-      }
+const [redirecting, setRedirecting] = useState(false);
 
-      setFirebaseUser(user);
-      try {
-        const idToken = await user.getIdToken();
-        const res = await fetch(PROFILE_GET, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${idToken}`,
-            Accept: "application/json",
+useEffect(() => {
+  const unsub = onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      setRedirecting(true); 
+      Alert.alert(
+        "Sesión requerida",
+        "Debes iniciar sesión para ver tu perfil.",
+        [
+          {
+            text: "OK",
+            onPress: () => navigation.reset({ index: 0, routes: [{ name: "Login" }] }),
           },
-        });
+        ],
+        { cancelable: false }
+      );
+      return;
+    }
 
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    setFirebaseUser(user);
+    setLoading(true); 
+    try {
+      const idToken = await user.getIdToken();
+      const res = await fetch(PROFILE_GET, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          Accept: "application/json",
+        },
+      });
 
-        const data = await res.json();
-        setProfile((p) => ({
-          ...p,
-          firstName: data.firstName ?? p.firstName,
-          lastName: data.lastName ?? p.lastName,
-          username: data.username ?? p.username,
-          email: data.email ?? p.email,
-          birthDate: data.birthDate ?? p.birthDate,
-          bio: data.bio ?? p.bio,
-          photoURL: data.photoURL ?? p.photoURL,
-          tags: Array.isArray(data.tags) && data.tags.length > 0 ? data.tags : p.tags,
-        }));
-      } catch (err) {
-        console.error("Error al obtener perfil:", err);
-        Alert.alert("Error", "No se pudo cargar tu perfil.");
-      } finally {
-        setLoading(false);
-      }
-    });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    return () => unsub();
-  }, [navigation]);
+      const data = await res.json();
+      setProfile((p) => ({
+        ...p,
+        firstName: data.firstName ?? p.firstName,
+        lastName: data.lastName ?? p.lastName,
+        username: data.username ?? p.username,
+        email: data.email ?? p.email,
+        birthDate: data.birthDate ?? p.birthDate,
+        bio: data.bio ?? p.bio,
+        photoURL: data.photoURL ?? p.photoURL,
+        tags: Array.isArray(data.tags) && data.tags.length > 0 ? data.tags : p.tags,
+      }));
+    } catch (err) {
+      console.error("Error al obtener perfil:", err);
+      Alert.alert("Error", "No se pudo cargar tu perfil.");
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  return () => unsub();
+}, [navigation]);
 
   const onChange = (field, value) => {
     setProfile((p) => ({ ...p, [field]: value }));
