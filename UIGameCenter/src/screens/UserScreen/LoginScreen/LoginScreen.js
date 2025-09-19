@@ -106,16 +106,16 @@ const onSubmit = async (data) => {
     promptAsync();
   };
   const onGithub = () => {
-    alert("Iniciar con GitHub (simulado)");
+    alert("Iniciar con GitHub ");
   };
 
   const onRegister = () => {
-    alert("Ir a registro (simulado)");
+    alert("Ir a registro ");
     navigation.navigate("Register");
   };
 
   const onGuest = () => {
-    alert("Continuar como invitado (simulado)");
+    alert("Continuar como invitado ");
     navigation.navigate("Home");
   };
 
