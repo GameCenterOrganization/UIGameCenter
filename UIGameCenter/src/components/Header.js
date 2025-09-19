@@ -7,9 +7,13 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
+import { useAuth } from '../screens/UserScreen/Auth/AuthContext';
+import { useNavigation } from '@react-navigation/native';
 
-const Header = ({ activeTab = 'Búsqueda', onTabPress }) => {
-  const [searchText, setSearchText] = useState('');
+const Header = ({ activeTab = 'Búsqueda', searchText, onSearchChange, onClearSearch }) => {
+  const navigation = useNavigation();
+  const { logout, currentUser } = useAuth();
+  const [localSearchText, setLocalSearchText] = useState(searchText || '');
 
   const tabs = [
     { id: 'search', name: 'Búsqueda', icon: '' },
@@ -19,15 +23,28 @@ const Header = ({ activeTab = 'Búsqueda', onTabPress }) => {
   ];
 
   const handleTabPress = (tabId) => {
-    if (tabId === 'search') {
-      return;
-    } else {
-      Alert.alert('Próximamente', `La sección ${tabId} estará disponible pronto.`);
-    }
+    if (tabId === 'search') return;
+    Alert.alert('Próximamente', `La sección ${tabId} estará disponible pronto.`);
   };
 
   const handleAccountPress = () => {
-    Alert.alert('Mi Cuenta', 'Funcionalidad de cuenta próximamente.');
+    if (!currentUser) {
+      navigation.navigate('Login');
+    } else {
+      navigation.navigate('Profile');
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      });
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error.message);
+    }
   };
 
   return (
@@ -58,21 +75,40 @@ const Header = ({ activeTab = 'Búsqueda', onTabPress }) => {
         ))}
       </View>
 
-      {/* Right side - Search & Account */}
+      {/* Right side - Search, Account & Logout */}
       <View style={styles.headerRight}>
         <TextInput
           style={styles.searchInput}
           placeholder="Buscar juegos..."
           placeholderTextColor="#888"
-          value={searchText}
-          onChangeText={setSearchText}
+          value={localSearchText}
+          onChangeText={(text) => {
+            setLocalSearchText(text);
+            onSearchChange && onSearchChange(text);
+          }}
         />
+        {localSearchText.length > 0 && (
+          <TouchableOpacity onPress={() => {
+            setLocalSearchText('');
+            onClearSearch && onClearSearch();
+          }}>
+            <Text style={styles.clearButtonText}>✕</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity 
           style={styles.accountButton}
           onPress={handleAccountPress}
         >
           <Text style={styles.accountText}>👤 Mi Cuenta</Text>
         </TouchableOpacity>
+        {currentUser && (
+          <TouchableOpacity 
+            style={styles.logoutButton}
+            onPress={handleLogout}
+          >
+            <Text style={styles.logoutText}>Cerrar Sesión</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -124,6 +160,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     justifyContent: 'flex-end',
+    gap: 8,
   },
   searchInput: {
     backgroundColor: '#2a2a3e',
@@ -132,8 +169,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     width: 150,
-    marginRight: 12,
     fontSize: 12,
+  },
+  clearButtonText: {
+    color: '#888',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginLeft: 4,
   },
   accountButton: {
     paddingHorizontal: 8,
@@ -141,6 +183,17 @@ const styles = StyleSheet.create({
   accountText: {
     color: 'white',
     fontSize: 12,
+  },
+  logoutButton: {
+    backgroundColor: '#ff3b30',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  logoutText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 });
 

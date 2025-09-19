@@ -17,15 +17,14 @@ const AppNavigator = () => {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Register" component={RegisterScreen} />
-
-        <Stack.Screen name="Settings" component={SettingsScreen} />
-
-        
-       <Stack.Screen name="Profile" options={{ title: 'Profile' }}>
+        <Stack.Screen name="Settings">
           {props => (
-            <ProtectedRoute navigation={props.navigation}>
-              <UserProfileScreen {...props} />
-            </ProtectedRoute>
+            <ProtectedRoute component={SettingsScreen} navigation={props.navigation} {...props} />
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="Profile">
+          {props => (
+            <ProtectedRoute component={UserProfileScreen} navigation={props.navigation} {...props} />
           )}
         </Stack.Screen>
       </Stack.Navigator>
