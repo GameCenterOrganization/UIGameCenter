@@ -13,9 +13,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
+      "bundleIdentifier": "com.dilangutierrez.uigamecenter",
       "supportsTablet": true
     },
     "android": {
+      "package": "com.dilangutierrez.uigamecenter",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"

@@ -5,6 +5,8 @@ import HomeScreen from '../screens/HomeScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import LoginScreen from '../screens/UserScreen/LoginScreen/LoginScreen.js';
+import RegisterScreen from '../screens/UserScreen/RegisterScreen/RegisterScreen.js';
+import UserProfileScreen from '../screens/UserScreen/ProfileScreen/UserProfileScreen.js';
 
 const Stack = createNativeStackNavigator();
 
@@ -23,14 +25,20 @@ const AppNavigator = () => {
           options={{ title: 'Inicio' }}
         />
         <Stack.Screen 
-          name="Profile" 
-          component={ProfileScreen}
-          options={{ title: 'Perfil' }}
+          name="Register" 
+          component={RegisterScreen}
+          options={{ title: 'Register' }}
         />
+      
         <Stack.Screen 
           name="Settings" 
           component={SettingsScreen}
           options={{ title: 'Configuración' }}
+        />
+        <Stack.Screen 
+          name="Profile" 
+          component={UserProfileScreen}
+          options={{ title: 'Profile' }}
         />
       </Stack.Navigator>
     </NavigationContainer>
