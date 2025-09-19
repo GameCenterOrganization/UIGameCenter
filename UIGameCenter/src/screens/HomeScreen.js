@@ -1,19 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  Dimensions,
-  FlatList,
-  ScrollView,
-  Platform,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Dimensions, FlatList, ScrollView, Platform, ActivityIndicator, Button } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-
+import { useAuth } from '../screens/UserScreen/Auth/AuthContext';
 import Header from '../components/Header';
 import Categories from '../components/Categories';
 import GameCard from '../components/GameCard';
@@ -36,24 +24,36 @@ const useDebounce = (value, delay) => {
   return debouncedValue;
 };
 
-const HomeScreen = () => {
+const HomeScreen = ({ navigation }) => {
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [searchText, setSearchText] = useState('');
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
-  const searchInputRef = useRef(null);
 
+  const searchInputRef = useRef(null);
   const debouncedSearchText = useDebounce(searchText, 300);
+  const { currentUser, logout } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      });
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error.message);
+    }
+  };
 
   const fetchGames = useCallback(async (searchTerm = '') => {
     setLoading(true);
     setError(null);
-    
+
     try {
       let url = 'http://localhost:3000/api/games';
-      
+
       if (searchTerm && searchTerm.trim() !== '') {
         url += `?search=${encodeURIComponent(searchTerm.trim())}`;
       }
@@ -64,11 +64,10 @@ const HomeScreen = () => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const data = await response.json();
       console.log('Datos recibidos del backend:', data);
-      
-      // Mapear los datos correctamente
+
       const mappedGames = data.map(game => ({
         id: game.id?.toString() || Math.random().toString(),
         title: game.title || 'Título desconocido',
@@ -84,7 +83,7 @@ const HomeScreen = () => {
           : 'https://via.placeholder.com/400x200/3a3a4e/ffffff?text=Game+Image',
         releaseDate: game.releaseDate || null,
       }));
-      
+
       console.log('Datos mapeados para frontend:', mappedGames);
       setGames(mappedGames);
 
@@ -122,14 +121,18 @@ const HomeScreen = () => {
   }, []);
 
   const handleGameBuy = useCallback((game) => {
-    Alert.alert('Comprar Juego', `¿Deseas comprar ${game.title} por $${game.price}?`, [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Comprar',
-        style: 'default',
-        onPress: () => Alert.alert('¡Compra exitosa!', `Has adquirido ${game.title}`),
-      },
-    ]);
+    Alert.alert(
+      'Comprar Juego',
+      `¿Deseas comprar ${game.title} por $${game.price}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Comprar',
+          style: 'default',
+          onPress: () => Alert.alert('¡Compra exitosa!', `Has adquirido ${game.title}`),
+        },
+      ]
+    );
   }, []);
 
   const handleClearSearch = useCallback(() => {
@@ -165,6 +168,7 @@ const HomeScreen = () => {
   const Content = useMemo(() => (
     <>
       <Header activeTab="Búsqueda" />
+      <Button title="Cerrar Sesión" onPress={handleLogout} color="#ff3b30" />
 
       <LinearGradient
         colors={['#6b46c1', '#06b6d4']}
@@ -183,11 +187,11 @@ const HomeScreen = () => {
             placeholder="Buscar juegos, géneros, plataformas..."
             placeholderTextColor="#888"
             value={searchText}
-            onChangeText={handleSearchTextChange} 
+            onChangeText={handleSearchTextChange}
             autoCapitalize="none"
             autoCorrect={false}
             returnKeyType="search"
-            blurOnSubmit={false} 
+            blurOnSubmit={false}
           />
           {searchText.length > 0 && (
             <TouchableOpacity style={styles.clearButton} onPress={handleClearSearch}>
@@ -272,27 +276,17 @@ const HomeScreen = () => {
             columnWrapperStyle={numColumns > 1 ? { justifyContent: 'space-between' } : null}
             contentContainerStyle={{ padding: 16 }}
             showsVerticalScrollIndicator={true}
-            removeClippedSubviews={false} 
-            maxToRenderPerBatch={10} 
-            windowSize={10} 
+            removeClippedSubviews={false}
+            maxToRenderPerBatch={10}
+            windowSize={10}
           />
         )
       )}
     </>
   ), [
-    searchText, 
-    filteredGames, 
-    loading, 
-    error, 
-    selectedCategory, 
-    debouncedSearchText,
-    handleSearchTextChange,
-    handleClearSearch,
-    handleCategorySelect,
-    handleGameDetails,
-    handleGameBuy,
-    renderGameItem,
-    cardWidth
+    searchText, filteredGames, loading, error, selectedCategory, debouncedSearchText,
+    handleSearchTextChange, handleClearSearch, handleCategorySelect, handleGameDetails,
+    handleGameBuy, renderGameItem, cardWidth, handleLogout
   ]);
 
   return (
