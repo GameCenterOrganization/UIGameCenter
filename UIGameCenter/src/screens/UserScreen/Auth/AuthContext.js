@@ -21,18 +21,17 @@ export function AuthProvider({ children }) {
     return unsubscribe;
   }, []);
 
-  const logout = () => {
-    return auth.signOut();
-  };
+  const logout = () => auth.signOut();
 
   const value = {
     currentUser,
+    loading,   // 🔹 lo exponemos para que ProtectedRoute lo use
     logout,
   };
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 }
