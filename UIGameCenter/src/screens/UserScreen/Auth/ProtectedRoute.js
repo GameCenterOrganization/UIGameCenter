@@ -1,4 +1,3 @@
-// src/screens/UserScreen/Auth/ProtectedRoute.js
 import React, { useEffect } from "react";
 import { useAuth } from "./AuthContext";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
@@ -8,7 +7,7 @@ export default function ProtectedRoute({ children }) {
   const { currentUser, loading } = useAuth();
   const navigation = useNavigation();
 
-  // 🔹 Mientras carga el estado de Firebase
+  
   if (loading) {
     return (
       <View style={styles.container}>
@@ -17,7 +16,7 @@ export default function ProtectedRoute({ children }) {
     );
   }
 
-  // 🔹 Si no hay usuario → mandar al Login
+  
   useEffect(() => {
     if (!currentUser) {
       navigation.reset({
@@ -27,9 +26,9 @@ export default function ProtectedRoute({ children }) {
     }
   }, [currentUser, navigation]);
 
-  // 🔹 Usuario autenticado → renderizamos hijos
+  
   if (!currentUser) {
-    return null; // mientras hace el reset
+    return null; 
   }
 
   return <>{children}</>;

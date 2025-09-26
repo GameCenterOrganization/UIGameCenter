@@ -19,8 +19,8 @@ import * as ImagePicker from "expo-image-picker";
 import { MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebaseConfig";
-import { styles } from "./ProfileStyle"; 
-
+import { styles } from "./ProfileStyle";
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const BACKEND_BASE = "http://localhost:8080";
 const PROFILE_GET = `${BACKEND_BASE}/api/users/profile`;
@@ -34,74 +34,75 @@ export default function UserProfileScreen({ navigation }) {
   const [firebaseUser, setFirebaseUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const [profile, setProfile] = useState({
     firstName: "",
     lastName: "",
     username: "",
     email: "",
-    birthDate: "",
+    birthDate: null,
     bio: "",
     photoURL: null,
     tags: ["Pro Gamer", "Amigable", "Estratega"],
   });
 
-const [redirecting, setRedirecting] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
 
-useEffect(() => {
-  const unsub = onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-      setRedirecting(true); 
-      Alert.alert(
-        "Sesión requerida",
-        "Debes iniciar sesión para ver tu perfil.",
-        [
-          {
-            text: "OK",
-            onPress: () => navigation.reset({ index: 0, routes: [{ name: "Login" }] }),
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+
+        return;
+      }
+
+      setFirebaseUser(user);
+      setLoading(true);
+      try {
+        const idToken = await user.getIdToken();
+        const res = await fetch(PROFILE_GET, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+            Accept: "application/json",
           },
-        ],
-        { cancelable: false }
-      );
-      return;
-    }
+        });
 
-    setFirebaseUser(user);
-    setLoading(true); 
-    try {
-      const idToken = await user.getIdToken();
-      const res = await fetch(PROFILE_GET, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${idToken}`,
-          Accept: "application/json",
-        },
-      });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
 
-      const data = await res.json();
-      setProfile((p) => ({
-        ...p,
-        firstName: data.firstName ?? p.firstName,
-        lastName: data.lastName ?? p.lastName,
-        username: data.username ?? p.username,
-        email: data.email ?? p.email,
-        birthDate: data.birthDate ?? p.birthDate,
-        bio: data.bio ?? p.bio,
-        photoURL: data.photoURL ?? p.photoURL,
-        tags: Array.isArray(data.tags) && data.tags.length > 0 ? data.tags : p.tags,
-      }));
-    } catch (err) {
-      console.error("Error al obtener perfil:", err);
-      Alert.alert("Error", "No se pudo cargar tu perfil.");
-    } finally {
-      setLoading(false);
-    }
-  });
 
-  return () => unsub();
-}, [navigation]);
+        let birthDate = null;
+        if (data.birthDate) {
+          const [year, month, day] = data.birthDate.split('-').map(Number);
+          if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+            birthDate = new Date(year, month - 1, day);
+          }
+        }
+
+        setProfile((p) => ({
+          ...p,
+          firstName: data.firstName ?? p.firstName,
+          lastName: data.lastName ?? p.lastName,
+          username: data.username ?? p.username,
+          email: data.email ?? p.email,
+          birthDate: birthDate,
+          bio: data.bio ?? p.bio,
+          photoURL: data.photoURL ?? p.photoURL,
+          tags: Array.isArray(data.tags) && data.tags.length > 0 ? data.tags : p.tags,
+        }));
+      } catch (err) {
+        console.error("Error al obtener perfil:", err);
+        Alert.alert("Error", "No se pudo cargar tu perfil.");
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    return () => unsub();
+  }, [navigation]);
 
   const onChange = (field, value) => {
     setProfile((p) => ({ ...p, [field]: value }));
@@ -118,6 +119,20 @@ useEffect(() => {
     setProfile((p) => ({ ...p, tags: p.tags.filter((t) => t !== tag) }));
   };
 
+  const formatDate = (date) => {
+    if (!date) return "";
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  const onDateChange = (event, selectedDate) => {
+    setShowDatePicker(false);
+    if (event.type === 'set' && selectedDate) {
+      setProfile(p => ({ ...p, birthDate: selectedDate }));
+    }
+  };
 
   const pickImageAndUpload = useCallback(async () => {
 
@@ -179,6 +194,8 @@ useEffect(() => {
     }
   }, [firebaseUser]);
 
+
+
   const saveProfile = async () => {
     if (!firebaseUser) {
       Alert.alert("Error", "Usuario no autenticado.");
@@ -187,6 +204,11 @@ useEffect(() => {
 
     setSaving(true);
     try {
+
+      const formattedBirthDate = profile.birthDate
+        ? profile.birthDate.toISOString().split('T')[0]
+        : null;
+
       const idToken = await firebaseUser.getIdToken();
       const res = await fetch(PROFILE_UPDATE, {
         method: "PUT",
@@ -195,17 +217,16 @@ useEffect(() => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          firstName: profile.firstName,
-          lastName: profile.lastName,
-          username: profile.username,
-          birthDate: profile.birthDate,
-          bio: profile.bio,
-          tags: profile.tags,
+          FIRST_NAME_DSC: profile.firstName,
+          LAST_NAME_DSC: profile.lastName,
+          USERNAME_DSC: profile.username,
+          BIRTH_DATE: formattedBirthDate,
+          BIO_DSC: profile.bio,
+          PROFILE_PIC: profile.photoURL,
         }),
       });
 
       if (!res.ok) throw new Error(`Save failed: ${res.status}`);
-
       Alert.alert("Éxito", "Perfil actualizado correctamente.");
     } catch (err) {
       console.error("Error al guardar:", err);
@@ -214,6 +235,7 @@ useEffect(() => {
       setSaving(false);
     }
   };
+
 
   if (loading) {
     return (
@@ -274,7 +296,7 @@ useEffect(() => {
             </View>
           </View>
 
-   
+
           <View style={[styles.card, isNarrow ? styles.cardNarrow : styles.cardWide]}>
             <Text style={styles.cardHeader}>Información Personal</Text>
 
@@ -321,12 +343,24 @@ useEffect(() => {
 
             <View style={styles.field}>
               <Text style={styles.label}>Fecha de Nacimiento</Text>
-              <TextInput
-                value={profile.birthDate}
-                onChangeText={(t) => onChange("birthDate", t)}
-                style={styles.input}
-                placeholder="DD/MM/YYYY"
-              />
+              <TouchableOpacity
+                style={[styles.input, { justifyContent: 'center' }]}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <Text style={{ color: profile.birthDate ? '#fff' : '#6b7a84' }}>
+                  {profile.birthDate ? formatDate(profile.birthDate) : "Selecciona tu fecha"}
+                </Text>
+              </TouchableOpacity>
+
+              {showDatePicker && (
+                <DateTimePicker
+                  value={profile.birthDate || new Date()}
+                  mode="date"
+                  display="default"
+                  onChange={onDateChange}
+                  maximumDate={new Date()}
+                />
+              )}
             </View>
 
             <View style={styles.field}>
@@ -342,7 +376,7 @@ useEffect(() => {
             </View>
           </View>
 
-         
+
           <View style={[styles.card, isNarrow ? styles.cardNarrow : styles.cardWide]}>
             <Text style={styles.cardHeader}>Tags de Personalidad</Text>
             <View style={styles.tagsRow}>
@@ -381,7 +415,7 @@ useEffect(() => {
 
             <Text style={styles.examples}>Ejemplos: Pro Gamer, Amigable, Solitario, Competitivo, Casual, Estratega</Text>
           </View>
-  <View >
+          <View >
             <Text >Configuración</Text>
             <Text>Ajusta tus preferencias aquí</Text>
             <Button
@@ -389,7 +423,7 @@ useEffect(() => {
               onPress={() => navigation.goBack()}
             />
           </View>
-      
+
           <View style={{ alignItems: "flex-end", width: "100%", paddingHorizontal: isNarrow ? 12 : 0 }}>
             <TouchableOpacity style={styles.saveButton} onPress={saveProfile} disabled={saving}>
               <LinearGradient colors={["#875ff5", "#9b7aff"]} start={[0, 0]} end={[1, 0]} style={styles.saveGradient}>
@@ -399,7 +433,7 @@ useEffect(() => {
           </View>
         </KeyboardAvoidingView>
       </ScrollView>
-      
+
     </LinearGradient>
   );
 }
