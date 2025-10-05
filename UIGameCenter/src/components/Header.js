@@ -23,6 +23,12 @@ const Header = ({ activeTab = 'Búsqueda', searchText, onSearchChange, onClearSe
   ];
 
   const handleTabPress = (tabId) => {
+
+    if (tabId === 'comunidad') {
+      navigation.navigate('Community'); // Usa el nuevo nombre de ruta
+      return;
+    }
+
     if (tabId === 'search') return;
     Alert.alert('Próximamente', `La sección ${tabId} estará disponible pronto.`);
   };
@@ -95,14 +101,14 @@ const Header = ({ activeTab = 'Búsqueda', searchText, onSearchChange, onClearSe
             <Text style={styles.clearButtonText}>✕</Text>
           </TouchableOpacity>
         )}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.accountButton}
           onPress={handleAccountPress}
         >
           <Text style={styles.accountText}>👤 Mi Cuenta</Text>
         </TouchableOpacity>
         {currentUser && (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.logoutButton}
             onPress={handleLogout}
           >

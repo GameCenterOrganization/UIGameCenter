@@ -9,6 +9,8 @@ import LoginScreen from '../screens/UserScreen/LoginScreen/LoginScreen';
 import RegisterScreen from '../screens/UserScreen/RegisterScreen/RegisterScreen';
 import UserProfileScreen from '../screens/UserScreen/ProfileScreen/UserProfileScreen';
 import ProtectedRoute from '../screens/UserScreen/Auth/ProtectedRoute';
+import CommunityScreen from '../screens/CommunityScreen'; 
+import PostDetailScreen from '../screens/PostDetailScreen'; 
 
 const Stack = createNativeStackNavigator();
 
@@ -19,6 +21,8 @@ const AppNavigator = () => {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Register" component={RegisterScreen} />
+        <Stack.Screen name="Community" component={CommunityScreen} />
+        <Stack.Screen name="PostDetail"component={PostDetailScreen}/>
 
         <Stack.Screen name="Profile">
           {props => (
