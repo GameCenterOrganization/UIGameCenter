@@ -1,7 +1,19 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Dimensions, FlatList, ScrollView, Platform, ActivityIndicator, Button } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  Dimensions,
+  FlatList,
+  ScrollView,
+  Platform,
+  ActivityIndicator,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useAuth } from '../screens/UserScreen/Auth/AuthContext';
+
 import Header from '../components/Header';
 import Categories from '../components/Categories';
 import GameCard from '../components/GameCard';
@@ -24,38 +36,30 @@ const useDebounce = (value, delay) => {
   return debouncedValue;
 };
 
-const HomeScreen = ({ navigation }) => {
+const API_BASE_URL = 'http://localhost:3000/api/games';
+
+const HomeScreen = () => {
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [searchText, setSearchText] = useState('');
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
+  
   const searchInputRef = useRef(null);
-  const debouncedSearchText = useDebounce(searchText, 300);
-  const { currentUser, logout } = useAuth();
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Login' }],
-      });
-    } catch (error) {
-      console.error("Error al cerrar sesión:", error.message);
-    }
-  };
+  const debouncedSearchText = useDebounce(searchText, 300);
 
   const fetchGames = useCallback(async (searchTerm = '') => {
     setLoading(true);
     setError(null);
-
+    
     try {
-      let url = 'http://localhost:3000/api/games';
-
+      let url = API_BASE_URL;
+      
       if (searchTerm && searchTerm.trim() !== '') {
-        url += `?search=${encodeURIComponent(searchTerm.trim())}`;
+        url = `${API_BASE_URL}/search?q=${encodeURIComponent(searchTerm.trim())}`;
+      } else {
+        url = `${API_BASE_URL}/featured?page_size=20`;
       }
 
       console.log('Fetching games from:', url);
@@ -64,27 +68,100 @@ const HomeScreen = ({ navigation }) => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+      
+      const result = await response.json();
+      console.log('Datos recibidos del backend:', result);
+      
+      let gamesData = [];
+      if (result.success && result.results) {
+        gamesData = result.results; 
+      } else if (result.success && result.data) {
+        gamesData = result.data;
+      } else if (Array.isArray(result)) {
+        gamesData = result;
+      } else if (result.results) {
+        gamesData = result.results; 
+      }
+      
+      console.log('Datos de juegos extraídos:', gamesData);
 
-      const data = await response.json();
-      console.log('Datos recibidos del backend:', data);
+      const mappedGames = gamesData.map(game => {
+        console.log('Procesando juego:', game);
 
-      const mappedGames = data.map(game => ({
-        id: game.id?.toString() || Math.random().toString(),
-        title: game.title || 'Título desconocido',
-        developer: game.developer || 'Desarrollador Desconocido',
-        description: game.description || 'Sin descripción',
-        rating: parseFloat(game.rating) || 0,
-        downloads: game.downloads || '0',
-        price: game.price || '0.00',
-        tags: Array.isArray(game.tags) ? game.tags : ['General'],
-        status: game.status || 'Lanzado',
-        image: (game.images && game.images.length > 0) 
-          ? game.images[0]
-          : 'https://via.placeholder.com/400x200/3a3a4e/ffffff?text=Game+Image',
-        releaseDate: game.releaseDate || null,
-      }));
+        let lowestPrice = '0.00';
+        if (game.prices && game.prices.length > 0) {
+          const validPrices = game.prices
+            .map(p => typeof p.price === 'number' ? p.price : parseFloat(p.price))
+            .filter(p => !isNaN(p) && p > 0);
+          
+          if (validPrices.length > 0) {
+            lowestPrice = Math.min(...validPrices).toFixed(2);
+          }
+        } else if (game.cheapest_price) {
+          const price = parseFloat(game.cheapest_price);
+          lowestPrice = !isNaN(price) ? price.toFixed(2) : '0.00';
+        }
 
-      console.log('Datos mapeados para frontend:', mappedGames);
+        let developer = 'Desarrollador Desconocido';
+        if (game.developers && game.developers.length > 0) {
+          developer = game.developers[0].name || 'Desarrollador Desconocido';
+        }
+
+        let description = 'Sin descripción disponible';
+        if (game.description) {
+          description = game.description.replace(/<[^>]*>/g, '');
+          if (description.length > 150) {
+            description = description.substring(0, 150) + '...';
+          }
+        } else if (game.description_raw) {
+          description = game.description_raw;
+          if (description.length > 150) {
+            description = description.substring(0, 150) + '...';
+          }
+        }
+
+        let tags = ['General'];
+        if (game.genres && game.genres.length > 0) {
+          tags = game.genres.map(g => g.name);
+        } else if (game.tags && game.tags.length > 0) {
+          tags = game.tags.slice(0, 3).map(t => t.name);
+        }
+
+        let rating = 0;
+        if (game.rating) {
+          rating = parseFloat(game.rating);
+          if (rating > 5) {
+            rating = (rating / 2).toFixed(1);
+          }
+        }
+
+        let image = 'https://via.placeholder.com/400x200/3a3a4e/ffffff?text=Game+Image';
+        if (game.background_image) {
+          image = game.background_image;
+        } else if (game.images && game.images.length > 0) {
+          image = game.images[0];
+        }
+
+        let releaseDate = game.released || null;
+
+        const mappedGame = {
+          id: game.id?.toString() || Math.random().toString(),
+          title: game.name || 'Título desconocido',
+          developer: developer,
+          description: description,
+          rating: rating,
+          price: lowestPrice,
+          tags: tags,
+          image: image,
+          releaseDate: releaseDate,
+          rawData: game
+        };
+
+        console.log('Juego mapeado:', mappedGame);
+        return mappedGame;
+      });
+      
+      console.log('Todos los juegos mapeados:', mappedGames);
       setGames(mappedGames);
 
     } catch (e) {
@@ -113,26 +190,41 @@ const HomeScreen = ({ navigation }) => {
   console.log('Juegos a mostrar:', filteredGames.length);
 
   const handleGameDetails = useCallback((game) => {
+    const detailedGame = game.rawData || game;
+    
+    let fullDescription = 'Sin descripción disponible';
+    if (detailedGame.description) {
+      fullDescription = detailedGame.description.replace(/<[^>]*>/g, '');
+    } else if (detailedGame.description_raw) {
+      fullDescription = detailedGame.description_raw;
+    }
+
+    let developers = 'Desarrollador Desconocido';
+    if (detailedGame.developers && detailedGame.developers.length > 0) {
+      developers = detailedGame.developers.map(dev => dev.name).join(', ');
+    }
+
     Alert.alert(
       game.title,
-      `${game.description}\n\nDesarrollador: ${game.developer}\nPrecio: $${game.price}`,
+      `${fullDescription}\n\n` +
+      `Desarrollador: ${developers}\n` +
+      `Precio: $${game.price}\n` +
+      `Rating: ${game.rating}/5\n` +
+      `Fecha de lanzamiento: ${game.releaseDate || 'Desconocida'}\n` +
+      `Géneros: ${game.tags.join(', ')}`,
       [{ text: 'OK', style: 'default' }]
     );
   }, []);
 
   const handleGameBuy = useCallback((game) => {
-    Alert.alert(
-      'Comprar Juego',
-      `¿Deseas comprar ${game.title} por $${game.price}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Comprar',
-          style: 'default',
-          onPress: () => Alert.alert('¡Compra exitosa!', `Has adquirido ${game.title}`),
-        },
-      ]
-    );
+    Alert.alert('Comprar Juego', `¿Deseas comprar ${game.title} por $${game.price}?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Comprar',
+        style: 'default',
+        onPress: () => Alert.alert('¡Compra exitosa!', `Has adquirido ${game.title}`),
+      },
+    ]);
   }, []);
 
   const handleClearSearch = useCallback(() => {
@@ -168,7 +260,6 @@ const HomeScreen = ({ navigation }) => {
   const Content = useMemo(() => (
     <>
       <Header activeTab="Búsqueda" />
-      <Button title="Cerrar Sesión" onPress={handleLogout} color="#ff3b30" />
 
       <LinearGradient
         colors={['#6b46c1', '#06b6d4']}
@@ -187,11 +278,11 @@ const HomeScreen = ({ navigation }) => {
             placeholder="Buscar juegos, géneros, plataformas..."
             placeholderTextColor="#888"
             value={searchText}
-            onChangeText={handleSearchTextChange}
+            onChangeText={handleSearchTextChange} 
             autoCapitalize="none"
             autoCorrect={false}
             returnKeyType="search"
-            blurOnSubmit={false}
+            blurOnSubmit={false} 
           />
           {searchText.length > 0 && (
             <TouchableOpacity style={styles.clearButton} onPress={handleClearSearch}>
@@ -276,17 +367,27 @@ const HomeScreen = ({ navigation }) => {
             columnWrapperStyle={numColumns > 1 ? { justifyContent: 'space-between' } : null}
             contentContainerStyle={{ padding: 16 }}
             showsVerticalScrollIndicator={true}
-            removeClippedSubviews={false}
-            maxToRenderPerBatch={10}
-            windowSize={10}
+            removeClippedSubviews={false} 
+            maxToRenderPerBatch={10} 
+            windowSize={10} 
           />
         )
       )}
     </>
   ), [
-    searchText, filteredGames, loading, error, selectedCategory, debouncedSearchText,
-    handleSearchTextChange, handleClearSearch, handleCategorySelect, handleGameDetails,
-    handleGameBuy, renderGameItem, cardWidth, handleLogout
+    searchText, 
+    filteredGames, 
+    loading, 
+    error, 
+    selectedCategory, 
+    debouncedSearchText,
+    handleSearchTextChange,
+    handleClearSearch,
+    handleCategorySelect,
+    handleGameDetails,
+    handleGameBuy,
+    renderGameItem,
+    cardWidth
   ]);
 
   return (
@@ -306,6 +407,7 @@ const HomeScreen = ({ navigation }) => {
   );
 };
 
+// Los estilos se mantienen igual...
 const styles = StyleSheet.create({
   container: {
     flex: 1,

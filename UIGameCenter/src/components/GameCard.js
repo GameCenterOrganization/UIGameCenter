@@ -22,14 +22,6 @@ const GameCard = ({ game, onDetailsPress, onBuyPress }) => {
           resizeMode="cover"
         />
         
-        {/* Status Badge */}
-        <View style={[
-          styles.statusBadge,
-          game.status === 'Lanzado' ? styles.launchedBadge : styles.featuredBadge
-        ]}>
-          <Text style={styles.statusText}>{game.status}</Text>
-        </View>
-        
         {/* Favorite Button */}
         <TouchableOpacity style={styles.favoriteButton}>
           <Text style={styles.favoriteIcon}>♡</Text>
@@ -63,8 +55,6 @@ const GameCard = ({ game, onDetailsPress, onBuyPress }) => {
           <View style={styles.ratingContainer}>
             <Text style={styles.starIcon}>★</Text>
             <Text style={styles.rating}>{game.rating}</Text>
-            <Text style={styles.downloadIcon}>↓</Text>
-            <Text style={styles.downloads}>{game.downloads}</Text>
           </View>
           <Text style={styles.price}>${game.price}</Text>
         </View>
@@ -109,25 +99,6 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: '#3a3a4e',
     resizeMode: 'cover',
-  },
-  statusBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  featuredBadge: {
-    backgroundColor: '#8b5cf6',
-  },
-  launchedBadge: {
-    backgroundColor: '#10b981',
-  },
-  statusText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: 'bold',
   },
   favoriteButton: {
     position: 'absolute',
@@ -200,15 +171,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     fontWeight: 'bold',
-    marginRight: 6,
-  },
-  downloadIcon: {
-    color: '#888',
-    fontSize: 12,
-  },
-  downloads: {
-    color: '#888',
-    fontSize: 12,
   },
   price: {
     color: '#8b5cf6',
