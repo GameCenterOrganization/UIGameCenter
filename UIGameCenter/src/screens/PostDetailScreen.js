@@ -6,146 +6,146 @@ import COLORS from '../constants/Colors';
 
 const { width } = Dimensions.get('window');
 
-// Mockup de Comentarios (más detallado)
-const MOCK_COMMENTS = [
+// 👇 1. Sacamos ResponseSection FUERA de PostDetailScreen
+const ResponseSection = ({ response, setResponse, imageAttached, setImageAttached, handlePublishResponse }) => (
+  <View style={styles.responseContainer}>
+    <Text style={styles.responseTitle}>Comparte tu opinión o consejo</Text>
+    <View style={styles.responseInputWrapper}>
+      <TextInput
+        style={styles.responseInput}
+        placeholder="Escribe tu respuesta..."
+        placeholderTextColor={COLORS.grayText}
+        value={response}
+        onChangeText={setResponse}
+        multiline
+        textAlignVertical="top"
+      />
+      <TouchableOpacity onPress={() => setImageAttached(!imageAttached)} style={styles.attachImageButton}>
+        <Ionicons 
+          name={imageAttached ? "image" : "image-outline"} 
+          size={24} 
+          color={imageAttached ? COLORS.purple : COLORS.grayText} 
+        />
+      </TouchableOpacity>
+    </View>
+    <TouchableOpacity onPress={handlePublishResponse} style={styles.publishResponseButton}>
+      <Text style={styles.publishResponseText}>Publicar Respuesta</Text>
+    </TouchableOpacity>
+  </View>
+);
+
+// 👇 2. También sacamos FullPostView (opcional, pero recomendado)
+const FullPostView = ({ post }) => (
+  <View style={styles.fullPostContainer}>
+    <View style={styles.postHeader}>
+      <View style={styles.authorInfo}>
+        <View style={styles.authorAvatar} />
+        <View>
+          <Text style={styles.authorName}>{post.author}</Text>
+          <Text style={styles.time}>{post.time}</Text>
+        </View>
+      </View>
+      {post.isTrending && <Text style={styles.trendingTag}>✨ Tendencia</Text>}
+    </View>
+
+    <Text style={styles.postTitle}>{post.title}</Text>
+    <Text style={styles.postDescription}>{post.description}</Text>
+    
+    <Image source={{ uri: post.imageUrl }} style={styles.mainImage} resizeMode="cover" />
+
+    <View style={styles.interactionsFooter}>
+      <View style={styles.interactionGroup}>
+        <Ionicons name="heart-outline" size={20} color={COLORS.grayText} />
+        <Text style={styles.interactionCount}>{post.likes}</Text>
+      </View>
+      <View style={styles.interactionGroup}>
+        <Ionicons name="chatbubble-outline" size={20} color={COLORS.grayText} />
+        <Text style={styles.interactionCount}>{post.comments}</Text>
+      </View>
+    </View>
+  </View>
+);
+
+// 👇 3. Y CommentsSection
+const CommentsSection = () => {
+  const MOCK_COMMENTS = [
     { id: 'c1', author: 'ValorantPro', time: 'hace 1 hora', text: 'Para principiantes, te recomiendo Sage o Brimstone. Sage es excelente porque sus habilidades de curación y resurrección son muy valiosas y fáciles de usar. Es el mejor support para empezar.', likes: 45 },
     { id: 'c2', author: 'AgentMaster', time: 'hace 45 minutos', text: 'Yo empecé con Sage y fue la mejor decisión. Te permite aprender el juego sin la presión de tener que hacer muchas kills. Una vez que mejores tu aim, puedes probar con duelistas como Phoenix o Reyna.', likes: 32 },
-];
+  ];
 
-const PostDetailScreen = ({ navigation }) => {
-    const route = useRoute();
-    // Asumimos que el post viene en los parámetros de la ruta
-    const { post } = route.params || { post: {} }; 
-    const [response, setResponse] = useState('');
-    const [imageAttached, setImageAttached] = useState(false);
-
-    const handlePublishResponse = () => {
-        if (!response.trim()) {
-            alert('El comentario no puede estar vacío.');
-            return;
-        }
-        // Lógica de publicación del comentario
-        alert('Respuesta publicada (simulada)');
-        setResponse('');
-        setImageAttached(false);
-    };
-
-    // A. Vista del Post Principal
-    const FullPostView = () => (
-        <View style={styles.fullPostContainer}>
-            <View style={styles.postHeader}>
-                <View style={styles.authorInfo}>
-                    <View style={styles.authorAvatar} />
-                    <View>
-                        <Text style={styles.authorName}>{post.author}</Text>
-                        <Text style={styles.time}>{post.time}</Text>
-                    </View>
-                </View>
-                {post.isTrending && <Text style={styles.trendingTag}>✨ Tendencia</Text>}
+  return (
+    <View style={styles.commentsListContainer}>
+      <Text style={styles.commentsCount}>Respuestas ({MOCK_COMMENTS.length})</Text>
+      {MOCK_COMMENTS.map(comment => (
+        <View key={comment.id} style={styles.commentCard}>
+          <View style={styles.commentHeader}>
+            <View style={styles.commentAuthorInfo}>
+              <View style={styles.authorAvatar} />
+              <View>
+                <Text style={styles.commentAuthorName}>{comment.author}</Text>
+                <Text style={styles.commentTime}>· {comment.time}</Text>
+              </View>
             </View>
-
-            <Text style={styles.postTitle}>{post.title}</Text>
-            <Text style={styles.postDescription}>{post.description}</Text>
-            
-            {/* Contenido extendido para simular la vista completa del prototipo */}
-            <View style={styles.extendedContent}>
-                <Text style={styles.extendedText}>
-                    La comunidad de Valorant ha cambiado mucho y busco un agente que cumpla con los siguientes requisitos:
-                </Text>
-                <Text style={styles.listItem}>• Sea fácil de aprender.</Text>
-                <Text style={styles.listItem}>• Tenga habilidades útiles para el equipo (como humo o curación).</Text>
-                <Text style={styles.listItem}>• No requiera mucha precisión al principio.</Text>
-                <Text style={styles.extendedTextBold}>¡Espero sus recomendaciones!</Text>
-            </View>
-
-            <Image source={{ uri: post.imageUrl }} style={styles.mainImage} resizeMode="cover" />
-
-            <View style={styles.interactionsFooter}>
-                <View style={styles.interactionGroup}>
-                    <Ionicons name="heart-outline" size={20} color={COLORS.grayText} />
-                    <Text style={styles.interactionCount}>{post.likes}</Text>
-                </View>
-                <View style={styles.interactionGroup}>
-                    <Ionicons name="chatbubble-outline" size={20} color={COLORS.grayText} />
-                    <Text style={styles.interactionCount}>{post.comments}</Text>
-                </View>
-            </View>
-        </View>
-    );
-
-    // B. Sección para Responder
-    const ResponseSection = () => (
-        <View style={styles.responseContainer}>
-            <Text style={styles.responseTitle}>Comparte tu opinión o consejo</Text>
-            <View style={styles.responseInputWrapper}>
-                <TextInput
-                    style={styles.responseInput}
-                    placeholder="Escribe tu respuesta..."
-                    placeholderTextColor={COLORS.grayText}
-                    value={response}
-                    onChangeText={setResponse}
-                    multiline
-                />
-                <TouchableOpacity onPress={() => setImageAttached(!imageAttached)} style={styles.attachImageButton}>
-                    <Ionicons name={imageAttached ? "image" : "image-outline"} size={24} color={imageAttached ? COLORS.purple : COLORS.grayText} />
-                </TouchableOpacity>
-            </View>
-            <TouchableOpacity onPress={handlePublishResponse} style={styles.publishResponseButton}>
-                <Text style={styles.publishResponseText}>Publicar Respuesta</Text>
+          </View>
+          <Text style={styles.commentText}>{comment.text}</Text>
+          <View style={styles.commentActions}>
+            <TouchableOpacity style={styles.commentActionButton}>
+              <Ionicons name="heart-outline" size={16} color={COLORS.grayText} />
+              <Text style={styles.commentActionText}>{comment.likes}</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={styles.commentActionButton}>
+              <Ionicons name="chatbubble-outline" size={16} color={COLORS.grayText} />
+              <Text style={styles.commentActionText}>Responder</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-    );
-
-    // C. Respuestas/Comentarios
-    const CommentsSection = () => (
-        <View style={styles.commentsListContainer}>
-            <Text style={styles.commentsCount}>Respuestas ({MOCK_COMMENTS.length})</Text>
-            {MOCK_COMMENTS.map(comment => (
-                <View key={comment.id} style={styles.commentCard}>
-                    <View style={styles.commentHeader}>
-                        <View style={styles.commentAuthorInfo}>
-                            <View style={styles.authorAvatar} />
-                            <View>
-                                <Text style={styles.commentAuthorName}>{comment.author}</Text>
-                                <Text style={styles.commentTime}>· {comment.time}</Text>
-                            </View>
-                        </View>
-                    </View>
-                    <Text style={styles.commentText}>{comment.text}</Text>
-                    <View style={styles.commentActions}>
-                        <TouchableOpacity style={styles.commentActionButton}>
-                            <Ionicons name="heart-outline" size={16} color={COLORS.grayText} />
-                            <Text style={styles.commentActionText}>{comment.likes}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.commentActionButton}>
-                            <Ionicons name="chatbubble-outline" size={16} color={COLORS.grayText} />
-                            <Text style={styles.commentActionText}>Responder</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            ))}
-        </View>
-    );
-
-    return (
-        <View style={styles.container}>
-            {/* Cabecera de Navegación con botón de vuelta */}
-            <View style={styles.navigationHeader}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={26} color={COLORS.white} />
-                </TouchableOpacity>
-                <Text style={styles.gameNameHeader}>{post.gameName || 'Detalle del Post'}</Text>
-                <View style={{ width: 26 }} /> 
-            </View>
-
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-                <FullPostView />
-                <ResponseSection />
-                <CommentsSection />
-            </ScrollView>
-        </View>
-    );
+      ))}
+    </View>
+  );
 };
+
+// 👇 4. Ahora PostDetailScreen queda limpio
+const PostDetailScreen = ({ navigation }) => {
+  const route = useRoute();
+  const { post } = route.params || { post: {} }; 
+  const [response, setResponse] = useState('');
+  const [imageAttached, setImageAttached] = useState(false);
+
+  const handlePublishResponse = () => {
+    if (!response.trim()) {
+      alert('El comentario no puede estar vacío.');
+      return;
+    }
+    alert('Respuesta publicada (simulada)');
+    setResponse('');
+    setImageAttached(false);
+  };
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.navigationHeader}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={26} color={COLORS.white} />
+        </TouchableOpacity>
+        <Text style={styles.gameNameHeader}>{post.gameName || 'Detalle del Post'}</Text>
+        <View style={{ width: 26 }} /> 
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <FullPostView post={post} />
+        <ResponseSection 
+          response={response}
+          setResponse={setResponse}
+          imageAttached={imageAttached}
+          setImageAttached={setImageAttached}
+          handlePublishResponse={handlePublishResponse}
+        />
+        <CommentsSection />
+      </ScrollView>
+    </View>
+  );
+};
+
 
 const styles = StyleSheet.create({
     container: {
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
         paddingBottom: 30,
         ...Platform.select({ web: { maxWidth: 1000, alignSelf: 'center', width: '100%' } })
     },
-    // A. Vista del Post Principal
+    // Vista del Post Principal
     fullPostContainer: {
         backgroundColor: COLORS.darkerBackground,
         padding: 20,
@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
         marginLeft: 5,
     },
-    // B. Sección para Responder
+    // Sección para Responder
     responseContainer: {
         padding: 15,
         marginBottom: 25,
@@ -323,7 +323,8 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         fontSize: 15,
     },
-    // C. Respuestas/Comentarios
+
+    // Respuestas/Comentarios
     commentsListContainer: {
         marginBottom: 15,
     },

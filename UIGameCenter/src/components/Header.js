@@ -29,8 +29,10 @@ const Header = ({ activeTab = 'Búsqueda', searchText, onSearchChange, onClearSe
       return;
     }
 
-    if (tabId === 'search') return;
-    Alert.alert('Próximamente', `La sección ${tabId} estará disponible pronto.`);
+    if (tabId === 'search')
+    {  navigation.navigate('Home');
+   return;}
+  
   };
 
   const handleAccountPress = () => {
@@ -124,7 +126,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#16213e',
+    backgroundColor: '#0f121f',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
