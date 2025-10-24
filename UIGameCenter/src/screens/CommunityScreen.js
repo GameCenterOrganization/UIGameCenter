@@ -1,346 +1,309 @@
-import React, { useState, useCallback } from 'react';
-import { 
-    View, 
-    Text, 
-    StyleSheet, 
-    ScrollView, 
-    TextInput, 
-    TouchableOpacity, 
-    Modal, 
-    Platform, 
-    Dimensions,
-    SafeAreaView 
+
+import React, { useState, useCallback, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Modal,
+  Platform,
+  Dimensions,
+  SafeAreaView,
+  ActivityIndicator,
+  RefreshControl,
+  Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import PostCard from '../components/PostCard'; 
-import CreatePostModal from './CreatePostModal'; 
+import PostCard from '../components/PostCard';
+import CreatePostModal from './CreatePostModal';
 import COLORS from '../constants/Colors';
-import Header from '../components/Header'; // ¡Importamos el Header global!
+import Header from '../components/Header';
+import { getAuth } from 'firebase/auth';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width } = Dimensions.get('window');
-
-// --- Data Mockup ---
-const MOCK_POSTS = [
-    { id: '1', gameName: 'Valorant', gameLogo: 'V', title: '¿Cuál es el mejor agente para principiantes en 2025?', description: 'Acabo de empezar a jugar Valorant y me gustaría saber qué agente recomiendan para empezar a entender las dinámicas.', imageUrl: 'https://picsum.photos/400/200?random=1', author: 'GamerPro23', time: 'hace 2 horas', likes: 234, comments: 89, isTrending: true },
-    { id: '2', gameName: 'League of Legends', gameLogo: 'L', title: 'Guía completa para subir de rango en Season 2025', description: 'Después de alcanzar Diamante, quiero compartir mis mejores consejos para escalar en solo queue. Aplica a cualquier rol.', imageUrl: 'https://picsum.photos/400/200?random=2', author: 'DiamondPlayer', time: 'hace 5 horas', likes: 567, comments: 143, isTrending: true },
-    { id: '3', gameName: 'Dota 2', gameLogo: 'D', title: 'Mejor build actual para Phantom Assassin?', description: 'Desde el último parche, no estoy seguro de cuál es el mejor árbol de talentos y los items clave. Ayuda!', imageUrl: 'https://picsum.photos/400/200?random=3', author: 'MidLaneGod', time: 'hace 1 día', likes: 45, comments: 12, isTrending: false },
-];
-
 const FILTER_OPTIONS = ['Todos', 'Más Recientes', 'Más Populares', 'Más Comentados', 'Sólo Tendencias'];
+const API_URL = "http://localhost:8080/api/post";
 
 const CommunityScreen = React.memo(({ navigation }) => {
-    const [filterVisible, setFilterVisible] = useState(false);
-    const [selectedFilter, setSelectedFilter] = useState('Todos');
-    const [searchQuery, setSearchQuery] = useState(''); 
-    const [activeTab, setActiveTab] = useState('Foros'); // Foros | Clubes
-    const [modalVisible, setModalVisible] = useState(false);
+  const [filterVisible, setFilterVisible] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState('Todos');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('Foros');
+  const [modalVisible, setModalVisible] = useState(false);
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-    // Requisito Funcional: Filtrado por nombre de juego
-    const filteredPosts = MOCK_POSTS.filter(post => {
-        const matchesSearch = post.gameName.toLowerCase().includes(searchQuery.toLowerCase());
-        
-        let isFiltered = true;
-        if (selectedFilter === 'Sólo Tendencias' && !post.isTrending) {
-             isFiltered = false;
-        }
+  const currentUser = getAuth().currentUser;
 
-        return matchesSearch && isFiltered;
+  const fetchPosts = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(API_URL);
+      const data = await response.json();
+      setPosts(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Error al cargar posts:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPosts();
+  }, []);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchPosts();
+    setRefreshing(false);
+  };
+
+ const handleDeletePost = async (postId) => {
+  try {
+    const auth = getAuth();
+    const user = auth.currentUser;
+
+    if (!user) {
+      Alert.alert("Error", "No se encontró usuario autenticado.");
+      return;
+    }
+
+   
+    const token = await user.getIdToken();
+
+    console.log("✅ Token obtenido correctamente desde Firebase");
+
+    const response = await fetch(`${API_URL}/delete/${postId}`, { 
+      method: "DELETE",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
     });
 
-    const handleFilterSelect = (filter) => {
-        setSelectedFilter(filter);
-        setFilterVisible(false);
-    };
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Error del servidor:", data);
+      Alert.alert("Error", data.message || "Error al eliminar el post");
+      return;
+    }
+
+    Alert.alert("Éxito", "Post eliminado correctamente");
+
     
-    // Funciones para que el Header global controle la búsqueda en esta pantalla
-    const handleSearchChange = useCallback((text) => {
-        setSearchQuery(text);
-    }, []);
+    setPosts((prevPosts) => prevPosts.filter((post) => post.ID_POST !== postId));
 
-    const handleClearSearch = useCallback(() => {
-        setSearchQuery('');
-    }, []);
+  } catch (error) {
+    console.error("Error al intentar eliminar el post:", error);
+    Alert.alert("Error", "Ocurrió un error al eliminar el post.");
+  }
+};
 
-    const navigateToDetail = useCallback((post) => {
-        navigation.navigate('PostDetail', { post });
-    }, [navigation]);
+  const handleFilterSelect = (filter) => {
+    setSelectedFilter(filter);
+    setFilterVisible(false);
+  };
 
-    // B. Sub-Header (Controles locales: Tabs Foros/Clubes, Botón Nuevo Post y Filtros)
-    const SubHeader = () => (
-        <View style={styles.subHeaderContainer}>
-            <View style={styles.tabsAndPostContainer}>
-                {/* 1. Botón Nuevo Post */}
-                <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.newPostButton}>
-                    <Ionicons name="add" size={20} color={COLORS.white} />
-                    <Text style={styles.newPostButtonText}>Nuevo Post</Text>
-                </TouchableOpacity>
+  const filteredPosts = posts.filter(post => {
+    const gameName = post.GAME_TITLE_DSC || "";
+    const matchesSearch = gameName.toLowerCase().includes(searchQuery.toLowerCase());
+    let isFiltered = true;
+    if (selectedFilter === 'Sólo Tendencias' && !post.isTrending) isFiltered = false;
+    
+    return matchesSearch && isFiltered;
+  });
 
-                {/* 2. Sub-Pestañas Foros/Clubes */}
-                <View style={styles.subTabsContainer}>
-                    <TouchableOpacity onPress={() => setActiveTab('Foros')}>
-                        <Text style={[styles.subTabText, activeTab === 'Foros' && styles.activeSubTab]}>Foros</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setActiveTab('Clubes')}>
-                        <Text style={[styles.subTabText, activeTab === 'Clubes' && styles.inactiveSubTab]}>Clubes</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-            
-            {/* 3. Botón de Filtros */}
-            <TouchableOpacity onPress={() => setFilterVisible(true)} style={styles.filterButton}>
-                <Ionicons name="filter" size={20} color={COLORS.white} />
-                <Text style={styles.filterButtonText}>{selectedFilter}</Text>
-                <Ionicons name="caret-down-outline" size={14} color={COLORS.white} style={{ marginLeft: 5 }} />
+  const navigateToDetail = useCallback((postId) => {
+    navigation.navigate('PostDetail', { postId });
+  }, [navigation]);
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <Header
+        activeTab="Comunidad"
+        searchText={searchQuery}
+        onSearchChange={setSearchQuery}
+        onClearSearch={() => setSearchQuery('')}
+      />
+
+      <View style={styles.subHeaderContainer}>
+        <View style={styles.leftGroup}>
+          <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.newPostButton}>
+            <Ionicons name="add" size={18} color={COLORS.white} />
+            <Text style={styles.newPostButtonText}>Nuevo Post</Text>
+          </TouchableOpacity>
+
+          <View style={styles.subTabsContainer}>
+            <TouchableOpacity onPress={() => setActiveTab('Foros')} style={[styles.subTab, activeTab === 'Foros' && styles.activeSubTab]}>
+              <Text style={[styles.subTabText, activeTab === 'Foros' && styles.activeSubTabText]}>Foros</Text>
             </TouchableOpacity>
+            <TouchableOpacity onPress={() => setActiveTab('Clubes')} style={[styles.subTab, activeTab === 'Clubes' && styles.activeSubTab]}>
+              <Text style={[styles.subTabText, activeTab === 'Clubes' && styles.activeSubTabText]}>Clubes</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-    );
-    
-    // Filtro Desplegable (Modal)
-    const FilterDropdown = () => (
-        <Modal
-            transparent={true}
-            visible={filterVisible}
-            onRequestClose={() => setFilterVisible(false)}
-        >
-            <TouchableOpacity style={styles.modalOverlay} onPress={() => setFilterVisible(false)}>
-                <View style={styles.filterMenu}>
-                    <Text style={styles.filterTitle}>Ordenar Por</Text>
-                    {FILTER_OPTIONS.map(option => (
-                        <TouchableOpacity 
-                            key={option} 
-                            onPress={() => handleFilterSelect(option)}
-                            style={[styles.filterItem, selectedFilter === option && styles.selectedFilterItem]}
-                        >
-                            <Text style={styles.filterItemText}>{option}</Text>
-                        </TouchableOpacity>
-                    ))}
-                    <TouchableOpacity 
-                        onPress={() => handleFilterSelect('Todos')}
-                        style={[styles.filterItem, styles.clearFilterButton]}
-                    >
-                         <Text style={styles.clearFilterText}>Limpiar Filtros</Text>
-                    </TouchableOpacity>
-                </View>
+
+        <TouchableOpacity onPress={() => setFilterVisible(true)} style={styles.filterButton}>
+          <Ionicons name="filter" size={18} color={COLORS.white} />
+          <Text style={styles.filterButtonText}>{selectedFilter}</Text>
+          <Ionicons name="caret-down-outline" size={14} color={COLORS.white} style={{ marginLeft: 6 }} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Filter modal */}
+      <Modal transparent visible={filterVisible} animationType="fade" onRequestClose={() => setFilterVisible(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setFilterVisible(false)}>
+          <View style={styles.filterMenu}>
+            <Text style={styles.filterTitle}>Ordenar Por</Text>
+            {FILTER_OPTIONS.map(option => (
+              <TouchableOpacity
+                key={option}
+                onPress={() => handleFilterSelect(option)}
+                style={[styles.filterItem, selectedFilter === option && styles.selectedFilterItem]}>
+                <Text style={styles.filterItemText}>{option}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity onPress={() => handleFilterSelect('Todos')} style={[styles.filterItem, styles.clearFilterButton]}>
+              <Text style={styles.clearFilterText}>Limpiar Filtros</Text>
             </TouchableOpacity>
-        </Modal>
-    );
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
-    return (
-        <SafeAreaView style={styles.container}>
-            {/* COMPONENTE HEADER GLOBAL */}
-            <Header 
-                activeTab="Comunidad" 
-                searchText={searchQuery} 
-                onSearchChange={handleSearchChange} 
-                onClearSearch={handleClearSearch} 
-            />
-            
-            {/* SUB-HEADER CON CONTROLES LOCALES */}
-            <SubHeader />
+      {loading ? (
+        <ActivityIndicator size="large" color={COLORS.purple} style={{ marginTop: 50 }} />
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        >
+          <Text style={styles.sectionTitle}>
+            {activeTab === 'Foros'
+              ? searchQuery
+                ? `Resultados para "${searchQuery}"`
+                : `Posts ${selectedFilter === 'Todos' ? '' : `- ${selectedFilter}`}`
+              : 'Clubes Populares'}
+          </Text>
 
-            <FilterDropdown /> 
+          {filteredPosts.length === 0 ? (
+            <Text style={styles.noResultsText}>No se encontraron posts que coincidan.</Text>
+          ) : (
+            filteredPosts.map(post => (
+              <PostCard
+                key={post.ID_POST}
+                post={post}
+                onPress={() => navigateToDetail(post.ID_POST)}
+                currentUser={currentUser}      
+                onDelete={handleDeletePost}
+              />
+            ))
+          )}
+        </ScrollView>
+      )}
 
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-                {/* C. Sección de Posts */}
-                <Text style={styles.sectionTitle}>
-                    {activeTab === 'Foros' ? 
-                        (searchQuery ? `Resultados para "${searchQuery}"` : `Posts en ${selectedFilter === 'Todos' ? 'Tendencia' : selectedFilter}`) 
-                        : "Clubes Populares"
-                    }
-                </Text>
-                
-                {activeTab === 'Foros' && (
-                    filteredPosts.length > 0 ? (
-                        filteredPosts.map(post => 
-                            <PostCard key={post.id} post={post} onPress={navigateToDetail} />
-                        )
-                    ) : (
-                        <Text style={styles.noResultsText}>No se encontraron posts que coincidan con la búsqueda o filtros.</Text>
-                    )
-                )}
-                
-                {activeTab === 'Clubes' && (
-                    <Text style={styles.noResultsText}>La sección de Clubes estará disponible pronto.</Text>
-                )}
-            </ScrollView>
-            
-            {/* Modal de Creación de Nuevo Post */}
-            <Modal
-                animationType="fade"
-                transparent={true}
-                visible={modalVisible}
-                onRequestClose={() => setModalVisible(false)}
-            >
-                <View style={styles.modalBackground}>
-                    <CreatePostModal onClose={() => setModalVisible(false)} />
-                </View>
-            </Modal>
-        </SafeAreaView>
-    );
+      {/* Create post modal */}
+      <Modal animationType="fade" transparent visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
+        <View style={styles.modalBackground}>
+          <CreatePostModal onClose={() => setModalVisible(false)} onPostCreated={fetchPosts} />
+        </View>
+      </Modal>
+
+      {/* Floating Add button (mobile) */}
+      <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
+        <Ionicons name="add" size={28} color={COLORS.white} />
+      </TouchableOpacity>
+    </SafeAreaView>
+  );
 });
 
-// Nota: Asegúrate de que tu archivo Header.js exporte el componente por defecto.
-
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: COLORS.darkBackground,
-    },
-    // Ajuste del paddingHorizontal al ScrollView para que se centre bien
-    scrollContent: {
-        paddingHorizontal: width < 768 ? 20 : 50,
-        paddingVertical: 10,
-        ...Platform.select({
-            web: { maxWidth: 1000, alignSelf: 'center', width: '100%' }, 
-        }),
-    },
-    
-    // --- B. Sub-Header (Controles Locales) ---
-    subHeaderContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: width < 768 ? 20 : 50,
-        paddingVertical: 10,
-        backgroundColor: COLORS.darkerBackground,
-        borderBottomWidth: 1,
-        borderBottomColor: COLORS.inputBackground,
-        ...Platform.select({ web: { maxWidth: 1000, alignSelf: 'center', width: '100%' } })
-    },
-    tabsAndPostContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    
-    // Botón Nuevo Post
-    newPostButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: COLORS.purple,
-        borderRadius: 8,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        marginRight: 20,
-    },
-    newPostButtonText: {
-        color: COLORS.white,
-        marginLeft: 5,
-        fontWeight: 'bold',
-        fontSize: 14,
-    },
+  container: { flex: 1, backgroundColor: COLORS.darkBackground },
 
-    // Sub-Pestañas Foros/Clubes
-    subTabsContainer: {
-        flexDirection: 'row',
-        backgroundColor: COLORS.inputBackground,
-        borderRadius: 20,
-        padding: 2,
-    },
-    subTabText: {
-        fontSize: 14,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 18,
-        fontWeight: 'bold',
-    },
-    activeSubTab: {
-        color: COLORS.white,
-        backgroundColor: COLORS.purple,
-    },
-    inactiveSubTab: {
-        color: COLORS.grayText,
-    },
+  subHeaderContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: width < 768 ? 16 : 40,
+    paddingVertical: 12,
+    backgroundColor: COLORS.darkerBackground,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.inputBackground,
+  },
+  leftGroup: { flexDirection: 'row', alignItems: 'center' },
 
-    // Botón de Filtro
-    filterButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 10,
-        paddingVertical: 8,
-        backgroundColor: COLORS.inputBackground,
-        borderRadius: 8,
-    },
-    filterButtonText: {
-        color: COLORS.white,
-        marginLeft: 8,
-        fontSize: 14,
-        fontWeight: '500',
-    },
-    
-    // C. Sección de Posts
-    sectionTitle: {
-        color: COLORS.grayText,
-        fontSize: 14,
-        fontWeight: 'bold',
-        marginBottom: 15,
-        marginTop: 10,
-        // Los estilos de padding y web deben ir en el ScrollView para que no se dupliquen
-        paddingHorizontal: width < 768 ? 20 : 50, 
-        ...Platform.select({ web: { maxWidth: 1000, alignSelf: 'center', width: '100%', paddingHorizontal: 0 } }) // Aquí no aplica
-    },
-    noResultsText: {
-        color: COLORS.grayText,
-        textAlign: 'center',
-        marginTop: 40,
-        fontSize: 16,
-    },
-    
-    // --- Filtro Modal ---
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
-        alignItems: 'flex-end',
-    },
-    filterMenu: {
-        backgroundColor: COLORS.darkerBackground,
-        borderRadius: 8,
-        width: 200,
-        marginTop: 10, // Ajustado para ser dinámico si es necesario, pero manteniendo 10px desde el botón
-        marginRight: width < 768 ? 20 : 50,
-        paddingVertical: 10,
-        // Ajuste en web para alinearse con el borde derecho del contenedor
-        ...Platform.select({ web: { marginRight: (Dimensions.get('window').width - Math.min(width, 1000)) / 2 } }),
-    },
-    filterTitle: {
-        color: COLORS.white,
-        fontSize: 15,
-        fontWeight: 'bold',
-        paddingHorizontal: 15,
-        paddingBottom: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: COLORS.inputBackground,
-        marginBottom: 5,
-    },
-    filterItem: {
-        paddingHorizontal: 15,
-        paddingVertical: 10,
-    },
-    selectedFilterItem: {
-        backgroundColor: COLORS.inputBackground, 
-    },
-    filterItemText: {
-        color: COLORS.white,
-        fontSize: 14,
-    },
-    clearFilterButton: {
-        borderTopWidth: 1, 
-        borderTopColor: COLORS.inputBackground, 
-        marginTop: 5, 
-        paddingTop: 10,
-    },
-    clearFilterText: {
-        color: COLORS.purple, 
-        fontWeight: 'bold',
-    },
-    
-    // Modal de Creación
-    modalBackground: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
+  newPostButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.purple,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginRight: 12,
+  },
+  newPostButtonText: { color: COLORS.white, fontWeight: '700', marginLeft: 8 },
+
+  subTabsContainer: { flexDirection: 'row', backgroundColor: COLORS.inputBackground, borderRadius: 20, padding: 3 },
+  subTab: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16 },
+  subTabText: { color: COLORS.grayText, fontWeight: '700' },
+  activeSubTab: { backgroundColor: COLORS.purple },
+  activeSubTabText: { color: COLORS.white },
+
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.inputBackground,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  filterButtonText: { color: COLORS.white, marginLeft: 8, fontWeight: '600' },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-start', alignItems: 'flex-end' },
+  filterMenu: {
+    width: 220,
+    backgroundColor: COLORS.darkerBackground,
+    marginTop: 70,
+    marginRight: width < 768 ? 16 : 40,
+    borderRadius: 8,
+    paddingVertical: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  filterTitle: { color: COLORS.white, fontWeight: '700', paddingHorizontal: 14, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: COLORS.inputBackground },
+  filterItem: { paddingVertical: 10, paddingHorizontal: 14 },
+  filterItemText: { color: COLORS.white },
+  selectedFilterItem: { backgroundColor: COLORS.inputBackground },
+  clearFilterButton: { borderTopWidth: 1, borderTopColor: COLORS.inputBackground, marginTop: 6 },
+  clearFilterText: { color: COLORS.purple, fontWeight: '700', paddingHorizontal: 14, paddingVertical: 10 },
+
+  scrollContent: { paddingHorizontal: width < 768 ? 16 : 40, paddingVertical: 12, paddingBottom: 120 },
+  sectionTitle: { color: COLORS.grayText, fontSize: 14, fontWeight: '700', marginBottom: 12 },
+  noResultsText: { color: COLORS.grayText, fontSize: 15, textAlign: 'center', marginTop: 40 },
+
+  modalBackground: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
+
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 28,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.purple,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+  },
 });
 
 export default CommunityScreen;
