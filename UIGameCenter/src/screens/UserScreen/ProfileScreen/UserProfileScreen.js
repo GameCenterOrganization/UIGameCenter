@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
@@ -12,7 +11,6 @@ import {
   Alert,
   useWindowDimensions,
   KeyboardAvoidingView,
-  Button,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
@@ -20,7 +18,7 @@ import { MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebaseConfig";
 import { styles } from "./ProfileStyle";
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 const BACKEND_BASE = "http://localhost:8080";
 const PROFILE_GET = `${BACKEND_BASE}/api/users/profile`;
@@ -44,18 +42,11 @@ export default function UserProfileScreen({ navigation }) {
     birthDate: null,
     bio: "",
     photoURL: null,
-    tags: ["Pro Gamer", "Amigable", "Estratega"],
   });
-
-  const [redirecting, setRedirecting] = useState(false);
-
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-
-        return;
-      }
+      if (!user) return;
 
       setFirebaseUser(user);
       setLoading(true);
@@ -70,13 +61,11 @@ export default function UserProfileScreen({ navigation }) {
         });
 
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
         const data = await res.json();
-
 
         let birthDate = null;
         if (data.birthDate) {
-          const [year, month, day] = data.birthDate.split('-').map(Number);
+          const [year, month, day] = data.birthDate.split("-").map(Number);
           if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
             birthDate = new Date(year, month - 1, day);
           }
@@ -91,7 +80,6 @@ export default function UserProfileScreen({ navigation }) {
           birthDate: birthDate,
           bio: data.bio ?? p.bio,
           photoURL: data.photoURL ?? p.photoURL,
-          tags: Array.isArray(data.tags) && data.tags.length > 0 ? data.tags : p.tags,
         }));
       } catch (err) {
         console.error("Error al obtener perfil:", err);
@@ -108,34 +96,22 @@ export default function UserProfileScreen({ navigation }) {
     setProfile((p) => ({ ...p, [field]: value }));
   };
 
-  const addTag = (tag) => {
-    if (!tag || tag.trim() === "") return;
-    const normalized = tag.trim();
-    if (profile.tags.includes(normalized)) return;
-    setProfile((p) => ({ ...p, tags: [...p.tags, normalized] }));
-  };
-
-  const removeTag = (tag) => {
-    setProfile((p) => ({ ...p, tags: p.tags.filter((t) => t !== tag) }));
-  };
-
   const formatDate = (date) => {
     if (!date) return "";
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
     const year = date.getFullYear();
     return `${day}/${month}/${year}`;
   };
 
   const onDateChange = (event, selectedDate) => {
     setShowDatePicker(false);
-    if (event.type === 'set' && selectedDate) {
-      setProfile(p => ({ ...p, birthDate: selectedDate }));
+    if (event.type === "set" && selectedDate) {
+      setProfile((p) => ({ ...p, birthDate: selectedDate }));
     }
   };
 
   const pickImageAndUpload = useCallback(async () => {
-
     if (!firebaseUser) {
       Alert.alert("Error", "Usuario no autenticado. Por favor, inicia sesión.");
       return;
@@ -183,8 +159,8 @@ export default function UserProfileScreen({ navigation }) {
       });
 
       if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
-
       const data = await res.json();
+
       setProfile((p) => ({ ...p, photoURL: data.photoURL || localUri }));
     } catch (err) {
       console.error("Error al subir imagen:", err);
@@ -194,8 +170,6 @@ export default function UserProfileScreen({ navigation }) {
     }
   }, [firebaseUser]);
 
-
-
   const saveProfile = async () => {
     if (!firebaseUser) {
       Alert.alert("Error", "Usuario no autenticado.");
@@ -204,9 +178,8 @@ export default function UserProfileScreen({ navigation }) {
 
     setSaving(true);
     try {
-
       const formattedBirthDate = profile.birthDate
-        ? profile.birthDate.toISOString().split('T')[0]
+        ? profile.birthDate.toISOString().split("T")[0]
         : null;
 
       const idToken = await firebaseUser.getIdToken();
@@ -236,7 +209,6 @@ export default function UserProfileScreen({ navigation }) {
     }
   };
 
-
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -257,11 +229,23 @@ export default function UserProfileScreen({ navigation }) {
 
   return (
     <LinearGradient colors={["#0b0d12", "#0f1116"]} style={styles.flex}>
+      {/* 🔙 Flecha de volver */}
+      <TouchableOpacity
+        onPress={() => navigation.goBack()}
+        style={{ position: "absolute", top: 40, left: 20, zIndex: 10 }}
+      >
+        <Feather name="arrow-left" size={26} color="#fff" />
+      </TouchableOpacity>
+
       <ScrollView contentContainerStyle={styles.container}>
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.inner}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.inner}
+        >
           <Text style={styles.title}>Mi Cuenta</Text>
           <Text style={styles.subtitle}>Gestiona tu perfil y configuración</Text>
 
+          {/* 📸 Foto de Perfil */}
           <View style={[styles.card, isNarrow ? styles.cardNarrow : styles.cardWide]}>
             <Text style={styles.cardHeader}>Foto de Perfil</Text>
             <View style={styles.row}>
@@ -274,7 +258,11 @@ export default function UserProfileScreen({ navigation }) {
                       <MaterialCommunityIcons name="account" size={48} color="#8b8f96" />
                     </View>
                   )}
-                  <TouchableOpacity style={styles.cameraBtn} onPress={pickImageAndUpload} activeOpacity={0.8}>
+                  <TouchableOpacity
+                    style={styles.cameraBtn}
+                    onPress={pickImageAndUpload}
+                    activeOpacity={0.8}
+                  >
                     {saving ? (
                       <ActivityIndicator size="small" color="#fff" />
                     ) : (
@@ -296,7 +284,7 @@ export default function UserProfileScreen({ navigation }) {
             </View>
           </View>
 
-
+          {/* 🧍 Información Personal */}
           <View style={[styles.card, isNarrow ? styles.cardNarrow : styles.cardWide]}>
             <Text style={styles.cardHeader}>Información Personal</Text>
 
@@ -307,8 +295,6 @@ export default function UserProfileScreen({ navigation }) {
                   value={profile.firstName}
                   onChangeText={(t) => onChange("firstName", t)}
                   style={styles.input}
-                  placeholder=""
-                  placeholderTextColor="#6b7a84"
                 />
               </View>
 
@@ -318,8 +304,6 @@ export default function UserProfileScreen({ navigation }) {
                   value={profile.lastName}
                   onChangeText={(t) => onChange("lastName", t)}
                   style={styles.input}
-                  placeholder=""
-                  placeholderTextColor="#6b7a84"
                 />
               </View>
             </View>
@@ -330,75 +314,86 @@ export default function UserProfileScreen({ navigation }) {
                 value={profile.username}
                 onChangeText={(t) => onChange("username", t)}
                 style={styles.input}
-                placeholder=""
-                placeholderTextColor="#6b7a84"
                 autoCapitalize="none"
               />
             </View>
 
             <View style={styles.field}>
               <Text style={styles.label}>Correo Electrónico</Text>
-              <TextInput value={profile.email} editable={false} style={[styles.input, styles.inputDisabled]} />
+              <TextInput
+                value={profile.email}
+                editable={false}
+                style={[styles.input, styles.inputDisabled]}
+              />
             </View>
 
-           <View style={styles.field}>
-  <Text style={styles.label}>Fecha de Nacimiento</Text>
+            <View style={styles.field}>
+              <Text style={styles.label}>Fecha de Nacimiento</Text>
+              {Platform.OS === "web" ? (
+                <input
+                  type="date"
+                  value={
+                    profile.birthDate instanceof Date && !isNaN(profile.birthDate)
+                      ? profile.birthDate.toISOString().split("T")[0]
+                      : ""
+                  }
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      const [year, month, day] = e.target.value.split("-").map(Number);
+                      const newDate = new Date(year, month - 1, day);
+                      onChange("birthDate", newDate);
+                    } else {
+                      onChange("birthDate", null);
+                    }
+                  }}
+                  style={{
+                    backgroundColor: "#1e2228",
+                    color: "#fff",
+                    padding: 12,
+                    borderRadius: 8,
+                    border: "1px solid #3a3f47",
+                    fontSize: 16,
+                    outline: "none",
+                    width: "100%",
+                  }}
+                />
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={[styles.input, { justifyContent: "center" }]}
+                    onPress={() => setShowDatePicker(true)}
+                  >
+                    <Text
+                      style={{
+                        color:
+                          profile.birthDate instanceof Date && !isNaN(profile.birthDate)
+                            ? "#fff"
+                            : "#6b7a84",
+                      }}
+                    >
+                      {profile.birthDate instanceof Date && !isNaN(profile.birthDate)
+                        ? formatDate(profile.birthDate)
+                        : "Selecciona tu fecha"}
+                    </Text>
+                  </TouchableOpacity>
 
-  {Platform.OS === 'web' ? (
-    <input
-      type="date"
-      value={profile.birthDate && profile.birthDate instanceof Date && !isNaN(profile.birthDate)
-        ? profile.birthDate.toISOString().split('T')[0]
-        : ''
-      }
-      onChange={(e) => {
-        if (e.target.value) {
-          const [year, month, day] = e.target.value.split('-').map(Number);
-          const newDate = new Date(year, month - 1, day);
-          onChange('birthDate', newDate);
-        } else {
-          onChange('birthDate', null);
-        }
-      }}
-      style={{
-        backgroundColor: '#1e2228',
-        color: '#fff',
-        padding: 12,
-        borderRadius: 8,
-        border: '1px solid #3a3f47',
-        fontSize: 16,
-        outline: 'none',
-        width: '100%',
-      }}
-    />
-  ) : (
-    <>
-      <TouchableOpacity
-        style={[styles.input, { justifyContent: 'center' }]}
-        onPress={() => setShowDatePicker(true)}
-      >
-        <Text style={{ color: profile.birthDate && profile.birthDate instanceof Date && !isNaN(profile.birthDate) ? '#fff' : '#6b7a84' }}>
-          {profile.birthDate && profile.birthDate instanceof Date && !isNaN(profile.birthDate)
-            ? formatDate(profile.birthDate)
-            : "Selecciona tu fecha"}
-        </Text>
-      </TouchableOpacity>
+                  {showDatePicker && (
+                    <DateTimePicker
+                      value={
+                        profile.birthDate instanceof Date && !isNaN(profile.birthDate)
+                          ? profile.birthDate
+                          : new Date()
+                      }
+                      mode="date"
+                      display="default"
+                      onChange={onDateChange}
+                      maximumDate={new Date()}
+                    />
+                  )}
+                </>
+              )}
+            </View>
 
-      {showDatePicker && (
-        <DateTimePicker
-          value={profile.birthDate && profile.birthDate instanceof Date && !isNaN(profile.birthDate)
-            ? profile.birthDate
-            : new Date()
-          }
-          mode="date"
-          display="default"
-          onChange={onDateChange}
-          maximumDate={new Date()}
-        />
-      )}
-    </>
-  )}
-</View>
             <View style={styles.field}>
               <Text style={styles.label}>Biografía</Text>
               <TextInput
@@ -412,64 +407,35 @@ export default function UserProfileScreen({ navigation }) {
             </View>
           </View>
 
-
-          <View style={[styles.card, isNarrow ? styles.cardNarrow : styles.cardWide]}>
-            <Text style={styles.cardHeader}>Tags de Personalidad</Text>
-            <View style={styles.tagsRow}>
-              {profile.tags.map((t) => (
-                <View style={styles.tag} key={t}>
-                  <Text style={styles.tagText}>{t}</Text>
-                  <TouchableOpacity onPress={() => removeTag(t)} style={styles.tagRemove}>
-                    <Feather name="x" size={14} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </View>
-
-            <View style={styles.addTagRow}>
-              <TextInput
-                placeholder="Agregar nuevo tag..."
-                placeholderTextColor="#6b7a84"
-                style={[styles.input, { flex: 1 }]}
-                onSubmitEditing={(e) => {
-                  addTag(e.nativeEvent.text);
-                  e.currentTarget.value = "";
-                }}
-              />
-              <TouchableOpacity
-                style={styles.addTagBtn}
-                onPress={() => {
-                  Alert.prompt?.("Nuevo Tag", "Escribe el nuevo tag", [
-                    { text: "Cancelar", style: "cancel" },
-                    { text: "Agregar", onPress: addTag },
-                  ]) || addTag("Nuevo");
-                }}
+          {/* 💾 Botón Guardar */}
+          <View
+            style={{
+              alignItems: "flex-end",
+              width: "100%",
+              paddingHorizontal: isNarrow ? 12 : 0,
+            }}
+          >
+            <TouchableOpacity
+              style={styles.saveButton}
+              onPress={saveProfile}
+              disabled={saving}
+            >
+              <LinearGradient
+                colors={["#875ff5", "#9b7aff"]}
+                start={[0, 0]}
+                end={[1, 0]}
+                style={styles.saveGradient}
               >
-                <Text style={{ color: "#fff", fontWeight: "700" }}>+</Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.examples}>Ejemplos: Pro Gamer, Amigable, Solitario, Competitivo, Casual, Estratega</Text>
-          </View>
-          <View >
-            <Text >Configuración</Text>
-            <Text>Ajusta tus preferencias aquí</Text>
-            <Button
-              title="Volver al Inicio"
-              onPress={() => navigation.goBack()}
-            />
-          </View>
-
-          <View style={{ alignItems: "flex-end", width: "100%", paddingHorizontal: isNarrow ? 12 : 0 }}>
-            <TouchableOpacity style={styles.saveButton} onPress={saveProfile} disabled={saving}>
-              <LinearGradient colors={["#875ff5", "#9b7aff"]} start={[0, 0]} end={[1, 0]} style={styles.saveGradient}>
-                {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Guardar Cambios</Text>}
+                {saving ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.saveText}>Guardar Cambios</Text>
+                )}
               </LinearGradient>
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
       </ScrollView>
-
     </LinearGradient>
   );
 }

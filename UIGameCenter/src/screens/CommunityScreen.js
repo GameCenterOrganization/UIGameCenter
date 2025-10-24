@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
@@ -7,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Modal,
-  Platform,
   Dimensions,
   SafeAreaView,
   ActivityIndicator,
@@ -20,7 +18,6 @@ import CreatePostModal from './CreatePostModal';
 import COLORS from '../constants/Colors';
 import Header from '../components/Header';
 import { getAuth } from 'firebase/auth';
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width } = Dimensions.get('window');
 const FILTER_OPTIONS = ['Todos', 'Más Recientes', 'Más Populares', 'Más Comentados', 'Sólo Tendencias'];
@@ -61,47 +58,40 @@ const CommunityScreen = React.memo(({ navigation }) => {
     setRefreshing(false);
   };
 
- const handleDeletePost = async (postId) => {
-  try {
-    const auth = getAuth();
-    const user = auth.currentUser;
+  const handleDeletePost = async (postId) => {
+    try {
+      const auth = getAuth();
+      const user = auth.currentUser;
 
-    if (!user) {
-      Alert.alert("Error", "No se encontró usuario autenticado.");
-      return;
+      if (!user) {
+        Alert.alert("Error", "No se encontró usuario autenticado.");
+        return;
+      }
+
+      const token = await user.getIdToken();
+      const response = await fetch(`${API_URL}/delete/${postId}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error("Error del servidor:", data);
+        Alert.alert("Error", data.message || "Error al eliminar el post");
+        return;
+      }
+
+      Alert.alert("Éxito", "Post eliminado correctamente");
+      setPosts((prevPosts) => prevPosts.filter((post) => post.ID_POST !== postId));
+    } catch (error) {
+      console.error("Error al intentar eliminar el post:", error);
+      Alert.alert("Error", "Ocurrió un error al eliminar el post.");
     }
-
-   
-    const token = await user.getIdToken();
-
-    console.log("✅ Token obtenido correctamente desde Firebase");
-
-    const response = await fetch(`${API_URL}/delete/${postId}`, { 
-      method: "DELETE",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error("Error del servidor:", data);
-      Alert.alert("Error", data.message || "Error al eliminar el post");
-      return;
-    }
-
-    Alert.alert("Éxito", "Post eliminado correctamente");
-
-    
-    setPosts((prevPosts) => prevPosts.filter((post) => post.ID_POST !== postId));
-
-  } catch (error) {
-    console.error("Error al intentar eliminar el post:", error);
-    Alert.alert("Error", "Ocurrió un error al eliminar el post.");
-  }
-};
+  };
 
   const handleFilterSelect = (filter) => {
     setSelectedFilter(filter);
@@ -113,7 +103,6 @@ const CommunityScreen = React.memo(({ navigation }) => {
     const matchesSearch = gameName.toLowerCase().includes(searchQuery.toLowerCase());
     let isFiltered = true;
     if (selectedFilter === 'Sólo Tendencias' && !post.isTrending) isFiltered = false;
-    
     return matchesSearch && isFiltered;
   });
 
@@ -131,7 +120,7 @@ const CommunityScreen = React.memo(({ navigation }) => {
       />
 
       <View style={styles.subHeaderContainer}>
-        <View style={styles.leftGroup}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.leftGroup}>
           <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.newPostButton}>
             <Ionicons name="add" size={18} color={COLORS.white} />
             <Text style={styles.newPostButtonText}>Nuevo Post</Text>
@@ -145,16 +134,16 @@ const CommunityScreen = React.memo(({ navigation }) => {
               <Text style={[styles.subTabText, activeTab === 'Clubes' && styles.activeSubTabText]}>Clubes</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </ScrollView>
 
         <TouchableOpacity onPress={() => setFilterVisible(true)} style={styles.filterButton}>
           <Ionicons name="filter" size={18} color={COLORS.white} />
           <Text style={styles.filterButtonText}>{selectedFilter}</Text>
-          <Ionicons name="caret-down-outline" size={14} color={COLORS.white} style={{ marginLeft: 6 }} />
+          <Ionicons name="caret-down-outline" size={14} color={COLORS.white} style={{ marginLeft: 4 }} />
         </TouchableOpacity>
       </View>
 
-      {/* Filter modal */}
+      {/* Modal de filtros */}
       <Modal transparent visible={filterVisible} animationType="fade" onRequestClose={() => setFilterVisible(false)}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setFilterVisible(false)}>
           <View style={styles.filterMenu}>
@@ -197,7 +186,7 @@ const CommunityScreen = React.memo(({ navigation }) => {
                 key={post.ID_POST}
                 post={post}
                 onPress={() => navigateToDetail(post.ID_POST)}
-                currentUser={currentUser}      
+                currentUser={currentUser}
                 onDelete={handleDeletePost}
               />
             ))
@@ -205,14 +194,14 @@ const CommunityScreen = React.memo(({ navigation }) => {
         </ScrollView>
       )}
 
-      {/* Create post modal */}
+      {/* Modal para crear post */}
       <Modal animationType="fade" transparent visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalBackground}>
           <CreatePostModal onClose={() => setModalVisible(false)} onPostCreated={fetchPosts} />
         </View>
       </Modal>
 
-      {/* Floating Add button (mobile) */}
+      {/* Botón flotante */}
       <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
         <Ionicons name="add" size={28} color={COLORS.white} />
       </TouchableOpacity>
@@ -227,28 +216,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: width < 768 ? 16 : 40,
-    paddingVertical: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     backgroundColor: COLORS.darkerBackground,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.inputBackground,
   },
-  leftGroup: { flexDirection: 'row', alignItems: 'center' },
+
+  leftGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
 
   newPostButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.purple,
     paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    marginRight: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
   },
-  newPostButtonText: { color: COLORS.white, fontWeight: '700', marginLeft: 8 },
+  newPostButtonText: { color: COLORS.white, fontWeight: '700', marginLeft: 6, fontSize: 14 },
 
-  subTabsContainer: { flexDirection: 'row', backgroundColor: COLORS.inputBackground, borderRadius: 20, padding: 3 },
-  subTab: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16 },
-  subTabText: { color: COLORS.grayText, fontWeight: '700' },
+  subTabsContainer: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.inputBackground,
+    borderRadius: 20,
+    padding: 3,
+  },
+  subTab: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
+  subTabText: { color: COLORS.grayText, fontWeight: '700', fontSize: 13 },
   activeSubTab: { backgroundColor: COLORS.purple },
   activeSubTabText: { color: COLORS.white },
 
@@ -260,30 +256,27 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
   },
-  filterButtonText: { color: COLORS.white, marginLeft: 8, fontWeight: '600' },
+  filterButtonText: { color: COLORS.white, marginLeft: 6, fontWeight: '600', fontSize: 13 },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-start', alignItems: 'flex-end' },
   filterMenu: {
-    width: 220,
+    width: 200,
     backgroundColor: COLORS.darkerBackground,
     marginTop: 70,
-    marginRight: width < 768 ? 16 : 40,
+    marginRight: 16,
     borderRadius: 8,
     paddingVertical: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
     elevation: 10,
   },
-  filterTitle: { color: COLORS.white, fontWeight: '700', paddingHorizontal: 14, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: COLORS.inputBackground },
-  filterItem: { paddingVertical: 10, paddingHorizontal: 14 },
-  filterItemText: { color: COLORS.white },
+  filterTitle: { color: COLORS.white, fontWeight: '700', paddingHorizontal: 14, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: COLORS.inputBackground },
+  filterItem: { paddingVertical: 8, paddingHorizontal: 14 },
+  filterItemText: { color: COLORS.white, fontSize: 13 },
   selectedFilterItem: { backgroundColor: COLORS.inputBackground },
   clearFilterButton: { borderTopWidth: 1, borderTopColor: COLORS.inputBackground, marginTop: 6 },
-  clearFilterText: { color: COLORS.purple, fontWeight: '700', paddingHorizontal: 14, paddingVertical: 10 },
+  clearFilterText: { color: COLORS.purple, fontWeight: '700', paddingHorizontal: 14, paddingVertical: 10, textAlign: 'center' },
 
-  scrollContent: { paddingHorizontal: width < 768 ? 16 : 40, paddingVertical: 12, paddingBottom: 120 },
-  sectionTitle: { color: COLORS.grayText, fontSize: 14, fontWeight: '700', marginBottom: 12 },
+  scrollContent: { paddingHorizontal: 14, paddingVertical: 10, paddingBottom: 100 },
+  sectionTitle: { color: COLORS.grayText, fontSize: 14, fontWeight: '700', marginBottom: 10 },
   noResultsText: { color: COLORS.grayText, fontSize: 15, textAlign: 'center', marginTop: 40 },
 
   modalBackground: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
@@ -291,17 +284,13 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 20,
-    bottom: 28,
+    bottom: 24,
     width: 56,
     height: 56,
     borderRadius: 28,
     backgroundColor: COLORS.purple,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
     elevation: 8,
   },
 });
