@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  Dimensions,
+  useWindowDimensions, 
   FlatList,
   ScrollView,
   Platform,
@@ -16,8 +16,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Header from '../components/Header';
 import Categories from '../components/Categories';
 import GameCard from '../components/GameCard';
-const { width } = Dimensions.get('window');
+
 const MAX_CONTENT_WIDTH = 1200; 
+
 const useDebounce = (value, delay) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
   useEffect(() => {
@@ -30,8 +31,12 @@ const useDebounce = (value, delay) => {
   }, [value, delay]);
   return debouncedValue;
 };
+
 const API_BASE_URL = 'http://localhost:3000/api/games';
+
 const HomeScreen = () => {
+  const { width } = useWindowDimensions(); 
+
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchText, setSearchText] = useState('');
   const [games, setGames] = useState([]);
@@ -41,6 +46,7 @@ const HomeScreen = () => {
   const [renderTrigger, setRenderTrigger] = useState(0);
   const searchInputRef = useRef(null);
   const debouncedSearchText = useDebounce(searchText, 300);
+
   const fetchGamesWithDetails = useCallback(async (basicGames, signal) => { 
     setLoadingDetails(true);
     try {
@@ -76,8 +82,8 @@ const HomeScreen = () => {
       }
     }
   }, []);
+
   const mapGameData = useCallback((game) => {
-    // Mapping logic...
     let lowestPrice = 'Free';
     if (game.prices && Array.isArray(game.prices) && game.prices.length > 0) {
         const validPrices = game.prices
@@ -166,6 +172,7 @@ const HomeScreen = () => {
     };
     return mappedGame;
   }, []);
+
   const fetchGames = useCallback(async (searchTerm = '', signal) => { 
     if (!searchTerm || searchTerm.trim() === '') {
       setGames([]);
@@ -209,6 +216,7 @@ const HomeScreen = () => {
       }
     }
   }, [fetchGamesWithDetails, mapGameData]);
+
   useEffect(() => {
     const controller = new AbortController();
     const signal = controller.signal;
@@ -217,6 +225,7 @@ const HomeScreen = () => {
       controller.abort();
     };
   }, [debouncedSearchText, fetchGames]);
+
   const filteredGames = useMemo(() => {
     if (!games || games.length === 0) return [];
     return games.filter((game) => {
@@ -228,6 +237,7 @@ const HomeScreen = () => {
       return matchesCategory;
     });
   }, [games, selectedCategory]);
+
   const handleGameDetails = useCallback(async (game) => {
     const detailedGame = game.rawData || game;
     let fullDescription = 'No description available';
@@ -259,6 +269,7 @@ const HomeScreen = () => {
       [{ text: 'OK', style: 'default' }]
     );
   }, []);
+
   const handleGameBuy = useCallback((game) => {
     Alert.alert(
       'Buy Game',
@@ -273,6 +284,7 @@ const HomeScreen = () => {
       ]
     );
   }, []);
+
   const handleClearSearch = useCallback(() => {
     setSearchText('');
     setGames([]);
@@ -282,19 +294,29 @@ const HomeScreen = () => {
       }
     }, 100);
   }, []);
+
   const handleSearchTextChange = useCallback((text) => {
     setSearchText(text);
   }, []);
+
   const handleCategorySelect = useCallback((category) => {
     setSelectedCategory(category);
   }, []);
-  const numColumns = width < 768 ? 2 : 3;
+
+  const numColumns = useMemo(() => {
+    if (width >= 1024) return 3;
+    if (width >= 550) return 2; 
+    return 1; 
+  }, [width]);
+
   const cardSpacing = 16; 
-  const containerPadding = 32; 
+  const containerPadding = width < 550 ? 16 : 32; 
+
   const cardWidth = useMemo(() => {
-        const effectiveWidth = width > MAX_CONTENT_WIDTH ? MAX_CONTENT_WIDTH : width; 
-        return (effectiveWidth - (containerPadding * 2) - (cardSpacing * (numColumns - 1))) / numColumns; 
-  }, [width, numColumns]);
+    const effectiveWidth = width > MAX_CONTENT_WIDTH ? MAX_CONTENT_WIDTH : width; 
+    return (effectiveWidth - (containerPadding * 2) - (cardSpacing * (numColumns - 1))) / numColumns; 
+  }, [width, numColumns, containerPadding]);
+
   const renderGameItem = useCallback(
     ({ item }) => (
       <View style={[styles.gameCardWrapper, { width: cardWidth }]}>
@@ -308,6 +330,7 @@ const HomeScreen = () => {
     ),
     [cardWidth, handleGameDetails, handleGameBuy]
   );
+
   const Content = useMemo(
     () => (
       <>
@@ -318,7 +341,8 @@ const HomeScreen = () => {
             end={{ x: 1, y: 0.5 }}
             style={styles.fullWidthGradientBar}
         />
-        <View style={styles.mainContentWrapper}>
+        {/* 🔑 CAMBIO 6: Pasar el padding dinámico al estilo del wrapper */}
+        <View style={styles.mainContentWrapper(containerPadding)}> 
             <View style={styles.heroBanner}> 
                 <Text style={styles.heroText}></Text> 
             </View>
@@ -363,7 +387,7 @@ const HomeScreen = () => {
                 {filteredGames.length} game{filteredGames.length !== 1 ? 's' : ''} found
               </Text>
             </View>
-            {/* Game loading and display logic */}
+            
             {loadingDetails && (
               <View style={styles.detailsLoadingBanner}>
                 <ActivityIndicator size="small" color="#8b5cf6" />
@@ -406,6 +430,7 @@ const HomeScreen = () => {
               </View>
             ) : (
               <FlatList
+                key={numColumns}
                 data={filteredGames}
                 keyExtractor={(item) => item.id}
                 numColumns={numColumns}
@@ -438,8 +463,10 @@ const HomeScreen = () => {
       renderGameItem,
       cardWidth,
       numColumns, 
+      containerPadding, 
     ]
   );
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -453,6 +480,7 @@ const HomeScreen = () => {
     
   );
 };
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -466,14 +494,14 @@ const styles = StyleSheet.create({
       height: 4,
       width: '100%',
   },
-  mainContentWrapper: {
+  mainContentWrapper: (containerPadding) => ({
     flex: 1,
     width: '100%',
     maxWidth: MAX_CONTENT_WIDTH,
     alignSelf: 'center',
-    paddingHorizontal: 32, 
+    paddingHorizontal: containerPadding, 
     paddingTop: 10, 
-  },
+  }),
   heroBanner: { 
     justifyContent: 'center',
     alignItems: 'center',
@@ -644,4 +672,5 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
+
 export default HomeScreen;
