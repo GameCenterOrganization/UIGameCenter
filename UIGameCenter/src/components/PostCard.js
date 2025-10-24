@@ -1,14 +1,16 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Dimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Dimensions, Platform, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import COLORS from '../constants/Colors';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
-const CARD_PADDING = width < 768 ? 40 : 100;
-const CARD_INNER_PADDING = 30;
-const IMAGE_WIDTH = width - CARD_PADDING - CARD_INNER_PADDING;
-const IMAGE_HEIGHT = width < 768 ? 200 : 300;
+
+// Calculamos el ancho del card y de las imágenes
+const CARD_PADDING = width < 768 ? 16 : 40;
+const CARD_WIDTH = width < 768 ? width - (CARD_PADDING * 2) : Math.min(700, width - (CARD_PADDING * 2));
+const IMAGE_WIDTH = CARD_WIDTH - 30; // 15px padding de cada lado
+const IMAGE_HEIGHT = IMAGE_WIDTH * 0.6; // Proporción 16:10 para mejor visualización
 
 const PostCard = ({ post, onPress, currentUser, onDelete }) => {
   const { 
@@ -22,7 +24,6 @@ const PostCard = ({ post, onPress, currentUser, onDelete }) => {
     ID_POST
   } = post;
 
-
   const isOwner = currentUser && (
     user?.UID_FIREBASE === currentUser.uid ||
     user?.EMAIL_DSC?.toLowerCase() === currentUser.email?.toLowerCase()
@@ -31,6 +32,8 @@ const PostCard = ({ post, onPress, currentUser, onDelete }) => {
   const imageList = images && images.length > 0 ? images.slice(0, 5).map(img => img.IMG_URL) : [];
   const scrollViewRef = useRef(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [imageModalVisible, setImageModalVisible] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
@@ -69,152 +72,574 @@ const PostCard = ({ post, onPress, currentUser, onDelete }) => {
     }
   };
 
+  const openImageModal = (index) => {
+    setSelectedImageIndex(index);
+    setImageModalVisible(true);
+  };
+
+  const closeImageModal = () => {
+    setImageModalVisible(false);
+  };
+
+  const navigateImage = (direction) => {
+    const newIndex = direction === 'next' 
+      ? (selectedImageIndex + 1) % imageList.length 
+      : (selectedImageIndex - 1 + imageList.length) % imageList.length;
+    setSelectedImageIndex(newIndex);
+  };
+
   return (
-    <TouchableOpacity onPress={() => onPress(post)} style={styles.card} activeOpacity={0.95}>
-      <View style={styles.header}>
-        <View style={styles.gameInfo}>
-          <View style={styles.gameLogoPlaceholder}>
-            <Text style={styles.gameLogoText}>{(GAME_TITLE_DSC || "G")[0]}</Text>
+    <View style={styles.cardContainer}>
+      <TouchableOpacity onPress={() => onPress(post)} style={styles.card} activeOpacity={0.95}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.gameInfo}>
+            <View style={styles.gameLogoPlaceholder}>
+              <Text style={styles.gameLogoText}>{(GAME_TITLE_DSC || "G")[0]}</Text>
+            </View>
+            <Text style={styles.gameName} numberOfLines={1}>{GAME_TITLE_DSC || "Juego"}</Text>
           </View>
-          <Text style={styles.gameName}>{GAME_TITLE_DSC || "Juego"}</Text>
+          <View style={styles.headerRight}>
+            {POST_DATE && <Text style={styles.dateText}>{formatDate(POST_DATE)}</Text>}
+            {isOwner && (
+              <TouchableOpacity 
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onDelete(ID_POST);
+                }} 
+                style={styles.deleteButton}
+              >
+                <Ionicons name="trash-outline" size={20} color={COLORS.red} />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          {POST_DATE && <Text style={styles.dateText}>{formatDate(POST_DATE)}</Text>}
-          {isOwner && (
-            <TouchableOpacity onPress={() => onDelete(ID_POST)} style={styles.deleteButton}>
-              <Ionicons name="trash-outline" size={22} color={COLORS.red} />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
 
-      <Text style={styles.title}>{POST_TITLE_DSC}</Text>
-      <Text style={styles.description} numberOfLines={2}>{POST_CONTENT_DSC}</Text>
+        {/* Title & Description */}
+        <Text style={styles.title} numberOfLines={2}>{POST_TITLE_DSC}</Text>
+        <Text style={styles.description} numberOfLines={3}>{POST_CONTENT_DSC}</Text>
 
-      {imageList.length > 0 && (
-        <View style={styles.imageContainer}>
-          {isWeb && imageList.length > 1 && currentIndex > 0 && (
-            <TouchableOpacity 
-              style={[styles.navButton, styles.navButtonLeft]}
-              onPress={() => scrollToIndex(currentIndex - 1)}>
-              <Ionicons name="chevron-back" size={24} color={COLORS.white} />
-            </TouchableOpacity>
-          )}
-          
-          <ScrollView
-            ref={scrollViewRef}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            snapToInterval={IMAGE_WIDTH}
-            decelerationRate="fast"
-            onScroll={handleScroll}
-            scrollEventThrottle={16}
-            style={styles.imageScrollView}>
-            {imageList.map((uri, index) => (
-              <View key={index} style={styles.imageWrapper}>
-                <Image
-                  source={{ uri: `http://localhost:8080${uri}` }}
-                  style={styles.mainImage}
-                  resizeMode="cover"
-                />
-              </View>
-            ))}
-          </ScrollView>
-
-          {isWeb && imageList.length > 1 && currentIndex < imageList.length - 1 && (
-            <TouchableOpacity 
-              style={[styles.navButton, styles.navButtonRight]}
-              onPress={() => scrollToIndex(currentIndex + 1)}>
-              <Ionicons name="chevron-forward" size={24} color={COLORS.white} />
-            </TouchableOpacity>
-          )}
-
-          {imageList.length > 1 && (
-            <View style={styles.imageDots}>
-              {imageList.map((_, index) => (
-                <View 
+        {/* Images Gallery */}
+        {imageList.length > 0 && (
+          <View style={styles.imageContainer}>
+            <ScrollView
+              ref={scrollViewRef}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={IMAGE_WIDTH}
+              decelerationRate="fast"
+              onScroll={handleScroll}
+              scrollEventThrottle={16}
+              contentContainerStyle={styles.imageScrollContent}
+            >
+              {imageList.map((uri, index) => (
+                <TouchableOpacity 
                   key={index} 
-                  style={[styles.dot, currentIndex === index && styles.activeDot]} 
-                />
+                  style={styles.imageWrapper}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    openImageModal(index);
+                  }}
+                  activeOpacity={0.9}
+                >
+                  <Image
+                    source={{ uri: `http://localhost:8080${uri}` }}
+                    style={styles.mainImage}
+                    resizeMode="cover"
+                  />
+                </TouchableOpacity>
               ))}
+            </ScrollView>
+
+            {/* Navigation Arrows - Only on Web */}
+            {isWeb && imageList.length > 1 && (
+              <>
+                {currentIndex > 0 && (
+                  <TouchableOpacity 
+                    style={[styles.navButton, styles.navButtonLeft]}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      scrollToIndex(currentIndex - 1);
+                    }}
+                  >
+                    <Ionicons name="chevron-back" size={24} color={COLORS.white} />
+                  </TouchableOpacity>
+                )}
+                
+                {currentIndex < imageList.length - 1 && (
+                  <TouchableOpacity 
+                    style={[styles.navButton, styles.navButtonRight]}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      scrollToIndex(currentIndex + 1);
+                    }}
+                  >
+                    <Ionicons name="chevron-forward" size={24} color={COLORS.white} />
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+
+            {/* Dots Indicator */}
+            {imageList.length > 1 && (
+              <View style={styles.imageDots}>
+                {imageList.map((_, index) => (
+                  <View 
+                    key={index} 
+                    style={[
+                      styles.dot, 
+                      currentIndex === index && styles.activeDot
+                    ]} 
+                  />
+                ))}
+              </View>
+            )}
+
+            {/* Image Counter */}
+            {imageList.length > 1 && (
+              <View style={styles.imageCounter}>
+                <Text style={styles.imageCounterText}>
+                  {currentIndex + 1}/{imageList.length}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Footer */}
+        <View style={styles.footer}>
+          <View style={styles.authorInfo}>
+            {user?.PROFILE_PIC ? (
+              <Image 
+                source={{ uri: `http://localhost:8080${user.PROFILE_PIC}` }} 
+                style={styles.authorAvatar} 
+              />
+            ) : (
+              <View style={[styles.authorAvatar, styles.avatarPlaceholder]}>
+                <Text style={styles.avatarText}>
+                  {(user?.USERNAME_DSC || "A")[0].toUpperCase()}
+                </Text>
+              </View>
+            )}
+            <Text style={styles.authorName}>{user?.USERNAME_DSC || "Anónimo"}</Text>
+          </View>
+          
+          <View style={styles.interactions}>
+            <View style={styles.interactionItem}>
+              <Ionicons name="heart-outline" size={18} color={COLORS.grayText} />
+              <Text style={styles.interactionCount}>0</Text>
+            </View>
+            <View style={styles.interactionItem}>
+              <Ionicons name="chatbubble-outline" size={18} color={COLORS.grayText} />
+              <Text style={styles.interactionCount}>{commentCount || 0}</Text>
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+
+      {/* Image Modal */}
+      <Modal
+        visible={imageModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={closeImageModal}
+      >
+        <View style={styles.modalContainer}>
+          <TouchableOpacity 
+            style={styles.modalOverlay} 
+            activeOpacity={1} 
+            onPress={closeImageModal}
+          />
+          
+          {/* Close Button */}
+          <TouchableOpacity 
+            style={styles.closeButton}
+            onPress={closeImageModal}
+          >
+            <Ionicons name="close" size={28} color={COLORS.white} />
+          </TouchableOpacity>
+
+          {/* Image Counter in Modal */}
+          {imageList.length > 1 && (
+            <View style={styles.modalImageCounter}>
+              <Text style={styles.modalImageCounterText}>
+                {selectedImageIndex + 1} / {imageList.length}
+              </Text>
+            </View>
+          )}
+
+          {/* Main Image */}
+          <View style={styles.modalImageContainer}>
+            <Image
+              source={{ uri: `http://localhost:8080${imageList[selectedImageIndex]}` }}
+              style={styles.modalImage}
+              resizeMode="contain"
+            />
+          </View>
+
+          {/* Navigation Arrows */}
+          {imageList.length > 1 && (
+            <>
+              <TouchableOpacity 
+                style={[styles.modalNavButton, styles.modalNavButtonLeft]}
+                onPress={() => navigateImage('prev')}
+              >
+                <Ionicons name="chevron-back" size={32} color={COLORS.white} />
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.modalNavButton, styles.modalNavButtonRight]}
+                onPress={() => navigateImage('next')}
+              >
+                <Ionicons name="chevron-forward" size={32} color={COLORS.white} />
+              </TouchableOpacity>
+            </>
+          )}
+
+          {/* Thumbnail Strip */}
+          {imageList.length > 1 && (
+            <View style={styles.thumbnailContainer}>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.thumbnailScroll}
+              >
+                {imageList.map((uri, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    onPress={() => setSelectedImageIndex(index)}
+                    style={[
+                      styles.thumbnail,
+                      selectedImageIndex === index && styles.thumbnailActive
+                    ]}
+                  >
+                    <Image
+                      source={{ uri: `http://localhost:8080${uri}` }}
+                      style={styles.thumbnailImage}
+                      resizeMode="cover"
+                    />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
           )}
         </View>
-      )}
-
-      <View style={styles.footer}>
-        <View style={styles.authorInfo}>
-          {user?.PROFILE_PIC ? (
-            <Image source={{ uri: `http://localhost:8080${user.PROFILE_PIC}` }} style={styles.authorAvatar} />
-          ) : (
-            <View style={styles.authorAvatar} />
-          )}
-          <Text style={styles.authorName}>{user?.USERNAME_DSC || "Anónimo"}</Text>
-        </View>
-        <View style={styles.interactions}>
-          <Ionicons name="heart-outline" size={16} color={COLORS.grayText} />
-          <Text style={styles.interactionCount}>0</Text>
-          <Ionicons name="chatbubble-outline" size={16} color={COLORS.grayText} style={{ marginLeft: 15 }} />
-          <Text style={styles.interactionCount}>{commentCount || 0}</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
+      </Modal>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  cardContainer: {
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   card: {
     backgroundColor: COLORS.darkerBackground,
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 15,
-    marginBottom: 16,
-    width: '100%',
+    width: CARD_WIDTH,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5.46,
-    elevation: 9,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
   },
+  
+  // Header
   header: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
     alignItems: 'center', 
-    marginBottom: 10 
+    marginBottom: 12,
   },
-  deleteButton: { marginLeft: 10, backgroundColor: 'rgba(255,0,0,0.15)', borderRadius: 6, padding: 4 },
-  gameInfo: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  gameInfo: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    flex: 1,
+    marginRight: 12,
+  },
   gameLogoPlaceholder: {
-    width: 24, height: 24, borderRadius: 5, marginRight: 8,
-    backgroundColor: COLORS.purple, justifyContent: 'center', alignItems: 'center',
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    marginRight: 10,
+    backgroundColor: COLORS.purple,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  gameLogoText: { color: COLORS.white, fontSize: 12, fontWeight: 'bold' },
-  gameName: { color: COLORS.white, fontSize: 14, fontWeight: 'bold', flex: 1 },
-  dateText: { color: COLORS.grayText, fontSize: 12, fontWeight: '500' },
-  title: { color: COLORS.white, fontSize: width < 768 ? 18 : 20, fontWeight: 'bold', marginBottom: 5 },
-  description: { color: COLORS.grayText, fontSize: 14, marginBottom: 10 },
-  imageContainer: { width: '100%', marginBottom: 10, position: 'relative' },
-  imageScrollView: { width: '100%', height: IMAGE_HEIGHT },
-  imageWrapper: { width: IMAGE_WIDTH, height: IMAGE_HEIGHT },
-  mainImage: { width: '100%', height: '100%', borderRadius: 8, backgroundColor: COLORS.inputBackground },
+  gameLogoText: { 
+    color: COLORS.white, 
+    fontSize: 16, 
+    fontWeight: 'bold',
+  },
+  gameName: { 
+    color: COLORS.white, 
+    fontSize: 15, 
+    fontWeight: '700',
+    flex: 1,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dateText: { 
+    color: COLORS.grayText, 
+    fontSize: 13, 
+    fontWeight: '500',
+  },
+  deleteButton: { 
+    backgroundColor: 'rgba(255,0,0,0.15)', 
+    borderRadius: 6, 
+    padding: 6,
+  },
+
+  // Content
+  title: { 
+    color: COLORS.white, 
+    fontSize: 18, 
+    fontWeight: 'bold', 
+    marginBottom: 8,
+    lineHeight: 24,
+  },
+  description: { 
+    color: COLORS.grayText, 
+    fontSize: 14, 
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+
+  // Images
+  imageContainer: { 
+    width: '100%', 
+    marginBottom: 12, 
+    position: 'relative',
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  imageScrollContent: {
+    alignItems: 'center',
+  },
+  imageWrapper: { 
+    width: IMAGE_WIDTH,
+    height: IMAGE_HEIGHT,
+    backgroundColor: COLORS.inputBackground,
+  },
+  mainImage: { 
+    width: '100%', 
+    height: '100%',
+  },
+  
+  // Navigation
   navButton: {
-    position: 'absolute', top: '50%', transform: [{ translateY: -20 }],
-    zIndex: 10, backgroundColor: 'rgba(0,0,0,0.5)',
-    width: 40, height: 40, borderRadius: 20,
-    justifyContent: 'center', alignItems: 'center',
-    ...Platform.select({ web: { cursor: 'pointer' } })
+    position: 'absolute',
+    top: '50%',
+    transform: [{ translateY: -20 }],
+    zIndex: 10,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Platform.select({ 
+      web: { cursor: 'pointer' } 
+    }),
   },
-  navButtonLeft: { left: 10 },
-  navButtonRight: { right: 10 },
-  imageDots: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', position: 'absolute', bottom: 10, left: 0, right: 0 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.5)', marginHorizontal: 3 },
-  activeDot: { backgroundColor: 'rgba(255,255,255,0.9)', width: 8, height: 8, borderRadius: 4 },
-  footer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  authorInfo: { flexDirection: 'row', alignItems: 'center' },
-  authorAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.grayText, marginRight: 8 },
-  authorName: { color: COLORS.white, fontSize: 12, fontWeight: 'bold' },
-  interactions: { flexDirection: 'row', alignItems: 'center' },
-  interactionCount: { color: COLORS.grayText, fontSize: 12, marginLeft: 4 },
+  navButtonLeft: { left: 12 },
+  navButtonRight: { right: 12 },
+  
+  // Indicators
+  imageDots: { 
+    flexDirection: 'row', 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    position: 'absolute', 
+    bottom: 12, 
+    left: 0, 
+    right: 0,
+  },
+  dot: { 
+    width: 6, 
+    height: 6, 
+    borderRadius: 3, 
+    backgroundColor: 'rgba(255,255,255,0.5)', 
+    marginHorizontal: 3,
+  },
+  activeDot: { 
+    backgroundColor: COLORS.white,
+    width: 20,
+    height: 6,
+  },
+  imageCounter: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  imageCounterText: {
+    color: COLORS.white,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
+  // Footer
+  footer: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.inputBackground,
+  },
+  authorInfo: { 
+    flexDirection: 'row', 
+    alignItems: 'center',
+    flex: 1,
+  },
+  authorAvatar: { 
+    width: 32, 
+    height: 32, 
+    borderRadius: 16, 
+    backgroundColor: COLORS.grayText, 
+    marginRight: 10,
+  },
+  avatarPlaceholder: {
+    backgroundColor: COLORS.purple,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    color: COLORS.white,
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  authorName: { 
+    color: COLORS.white, 
+    fontSize: 14, 
+    fontWeight: '600',
+  },
+  interactions: { 
+    flexDirection: 'row', 
+    alignItems: 'center',
+    gap: 16,
+  },
+  interactionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  interactionCount: { 
+    color: COLORS.grayText, 
+    fontSize: 13,
+    fontWeight: '500',
+  },
+
+  // Image Modal
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 50 : 20,
+    right: 20,
+    zIndex: 100,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalImageCounter: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 50 : 20,
+    left: 20,
+    zIndex: 100,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  modalImageCounterText: {
+    color: COLORS.white,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  modalImageContainer: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  modalImage: {
+    width: '100%',
+    height: '100%',
+    maxWidth: 1200,
+    maxHeight: '80%',
+  },
+  modalNavButton: {
+    position: 'absolute',
+    top: '50%',
+    transform: [{ translateY: -25 }],
+    zIndex: 100,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalNavButtonLeft: {
+    left: 20,
+  },
+  modalNavButtonRight: {
+    right: 20,
+  },
+  thumbnailContainer: {
+    position: 'absolute',
+    bottom: 20,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+  },
+  thumbnailScroll: {
+    paddingHorizontal: 20,
+    alignItems: 'center',
+  },
+  thumbnail: {
+    width: 60,
+    height: 60,
+    marginHorizontal: 4,
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  thumbnailActive: {
+    borderColor: COLORS.purple,
+  },
+  thumbnailImage: {
+    width: '100%',
+    height: '100%',
+  },
 });
 
 export default PostCard;

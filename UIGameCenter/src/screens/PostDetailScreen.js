@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TextInput, TouchableOpacity, Platform, Dimensions, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TextInput, TouchableOpacity, Platform, Dimensions, ActivityIndicator, Alert, Modal } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -7,7 +7,6 @@ import { getAuth } from 'firebase/auth';
 import COLORS from '../constants/Colors';
 
 const { width } = Dimensions.get('window');
-
 
 const getApiBaseUrl = () => {
   if (Platform.OS === 'android') {
@@ -35,6 +34,102 @@ const getImageBaseUrl = () => {
 
 const IMAGE_BASE_URL = getImageBaseUrl();
 
+// Image Modal Component
+const ImageModal = ({ visible, images, initialIndex, onClose }) => {
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+
+  useEffect(() => {
+    setCurrentIndex(initialIndex);
+  }, [initialIndex]);
+
+  const navigateImage = (direction) => {
+    if (direction === 'next') {
+      setCurrentIndex((prev) => (prev + 1) % images.length);
+    } else {
+      setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
+    }
+  };
+
+  if (!visible || !images || images.length === 0) return null;
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalContainer}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose} />
+        
+        {/* Close Button */}
+        <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+          <Ionicons name="close" size={28} color={COLORS.white} />
+        </TouchableOpacity>
+
+        {/* Image Counter */}
+        {images.length > 1 && (
+          <View style={styles.modalImageCounter}>
+            <Text style={styles.modalImageCounterText}>
+              {currentIndex + 1} / {images.length}
+            </Text>
+          </View>
+        )}
+
+        {/* Main Image */}
+        <View style={styles.modalImageContainer}>
+          <Image
+            source={{ uri: images[currentIndex] }}
+            style={styles.modalImage}
+            resizeMode="contain"
+          />
+        </View>
+
+        {/* Navigation Arrows */}
+        {images.length > 1 && (
+          <>
+            <TouchableOpacity 
+              style={[styles.modalNavButton, styles.modalNavButtonLeft]}
+              onPress={() => navigateImage('prev')}
+            >
+              <Ionicons name="chevron-back" size={32} color={COLORS.white} />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.modalNavButton, styles.modalNavButtonRight]}
+              onPress={() => navigateImage('next')}
+            >
+              <Ionicons name="chevron-forward" size={32} color={COLORS.white} />
+            </TouchableOpacity>
+          </>
+        )}
+
+        {/* Thumbnail Strip */}
+        {images.length > 1 && (
+          <View style={styles.thumbnailContainer}>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.thumbnailScroll}
+            >
+              {images.map((uri, index) => (
+                <TouchableOpacity
+                  key={index}
+                  onPress={() => setCurrentIndex(index)}
+                  style={[
+                    styles.thumbnail,
+                    currentIndex === index && styles.thumbnailActive
+                  ]}
+                >
+                  <Image
+                    source={{ uri }}
+                    style={styles.thumbnailImage}
+                    resizeMode="cover"
+                  />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+      </View>
+    </Modal>
+  );
+};
 
 const ResponseSection = ({ response, setResponse, imageAttached, setImageAttached, handlePublishResponse, loading }) => (
   <View style={styles.responseContainer}>
@@ -75,15 +170,18 @@ const ResponseSection = ({ response, setResponse, imageAttached, setImageAttache
   </View>
 );
 
-
-const FullPostView = ({ post }) => (
+const FullPostView = ({ post, onImagePress }) => (
   <View style={styles.fullPostContainer}>
     <View style={styles.postHeader}>
       <View style={styles.authorInfo}>
         {post.user?.PROFILE_PIC ? (
           <Image source={{ uri: `${IMAGE_BASE_URL}${post.user.PROFILE_PIC}` }} style={styles.authorAvatar} />
         ) : (
-          <View style={styles.authorAvatar} />
+          <View style={[styles.authorAvatar, styles.avatarPlaceholder]}>
+            <Text style={styles.avatarText}>
+              {(post.user?.USERNAME_DSC || post.user?.FIRST_NAME_DSC || 'U')[0].toUpperCase()}
+            </Text>
+          </View>
         )}
         <View>
           <Text style={styles.authorName}>
@@ -99,22 +197,43 @@ const FullPostView = ({ post }) => (
     </View>
     <Text style={styles.postTitle}>{post.POST_TITLE_DSC}</Text>
     <Text style={styles.postDescription}>{post.POST_CONTENT_DSC}</Text>
+    
     {post.images?.length > 0 && (
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagesScroll}>
-        {post.images.map((img, index) => (
-          <Image 
-            key={img.ID_POST_IMG || index} 
-            source={{ uri: `${IMAGE_BASE_URL}${img.IMG_URL}` }} 
-            style={styles.postImage} 
-            resizeMode="cover" 
-          />
-        ))}
-      </ScrollView>
+      <View style={styles.imagesGallery}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false} 
+          contentContainerStyle={styles.imagesScrollContent}
+          snapToInterval={width < 768 ? width - 80 : 420}
+          decelerationRate="fast"
+        >
+          {post.images.map((img, index) => (
+            <TouchableOpacity 
+              key={img.ID_POST_IMG || index}
+              onPress={() => onImagePress(index)}
+              activeOpacity={0.9}
+              style={styles.postImageWrapper}
+            >
+              <Image 
+                source={{ uri: `${IMAGE_BASE_URL}${img.IMG_URL}` }} 
+                style={styles.postImage} 
+                resizeMode="cover" 
+              />
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+        {post.images.length > 1 && (
+          <View style={styles.imageCountBadge}>
+            <Ionicons name="images" size={14} color={COLORS.white} />
+            <Text style={styles.imageCountText}>{post.images.length}</Text>
+          </View>
+        )}
+      </View>
     )}
   </View>
 );
 
-const CommentsSection = ({ comments, currentUser, onDeleteComment, deletingCommentId }) => {
+const CommentsSection = ({ comments, currentUser, onDeleteComment, deletingCommentId, onImagePress }) => {
   return (
     <View style={styles.commentsListContainer}>
       <Text style={styles.commentsCount}>Respuestas ({comments.length})</Text>
@@ -122,7 +241,6 @@ const CommentsSection = ({ comments, currentUser, onDeleteComment, deletingComme
         <Text style={styles.noCommentsText}>Aún no hay respuestas. ¡Sé el primero en comentar!</Text>
       ) : (
         comments.map(comment => {
-    
           const isOwner = currentUser && (
             comment.user?.FIREBASE_UID === currentUser.uid ||
             comment.user?.EMAIL_DSC?.toLowerCase() === currentUser.email?.toLowerCase()
@@ -136,7 +254,11 @@ const CommentsSection = ({ comments, currentUser, onDeleteComment, deletingComme
                   {comment.user?.PROFILE_PIC ? (
                     <Image source={{ uri: `${IMAGE_BASE_URL}${comment.user.PROFILE_PIC}` }} style={styles.commentAvatar} />
                   ) : (
-                    <View style={styles.commentAvatar} />
+                    <View style={[styles.commentAvatar, styles.avatarPlaceholder]}>
+                      <Text style={styles.commentAvatarText}>
+                        {(comment.user?.USERNAME_DSC || comment.user?.FIRST_NAME_DSC || 'U')[0].toUpperCase()}
+                      </Text>
+                    </View>
                   )}
                   <View style={{ flex: 1 }}>
                     <Text style={styles.commentAuthorName}>
@@ -167,11 +289,16 @@ const CommentsSection = ({ comments, currentUser, onDeleteComment, deletingComme
               </View>
               <Text style={styles.commentText}>{comment.COMMENT_CONTENT_DSC}</Text>
               {comment.images?.[0]?.IMG_URL && (
-                <Image 
-                  source={{ uri: `${IMAGE_BASE_URL}${comment.images[0].IMG_URL}` }} 
-                  style={styles.commentImage} 
-                  resizeMode="cover"
-                />
+                <TouchableOpacity 
+                  onPress={() => onImagePress(0, comment.images)}
+                  activeOpacity={0.9}
+                >
+                  <Image 
+                    source={{ uri: `${IMAGE_BASE_URL}${comment.images[0].IMG_URL}` }} 
+                    style={styles.commentImage} 
+                    resizeMode="cover"
+                  />
+                </TouchableOpacity>
               )}
             </View>
           );
@@ -180,7 +307,6 @@ const CommentsSection = ({ comments, currentUser, onDeleteComment, deletingComme
     </View>
   );
 };
-
 
 const PostDetailScreen = ({ navigation }) => {
   const route = useRoute();
@@ -194,10 +320,14 @@ const PostDetailScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(!postFromParams);
   const [deletingCommentId, setDeletingCommentId] = useState(null);
+  
+  // Image modal states
+  const [imageModalVisible, setImageModalVisible] = useState(false);
+  const [modalImages, setModalImages] = useState([]);
+  const [modalInitialIndex, setModalInitialIndex] = useState(0);
 
   const actualPostId = postId || postFromParams?.ID_POST;
   const currentUser = auth.currentUser;
-
 
   const fetchPostAndComments = async () => {
     if (!actualPostId) {
@@ -248,6 +378,19 @@ const PostDetailScreen = ({ navigation }) => {
     fetchPostAndComments(); 
   }, [actualPostId]);
 
+  const openPostImageModal = (index) => {
+    const images = post.images.map(img => `${IMAGE_BASE_URL}${img.IMG_URL}`);
+    setModalImages(images);
+    setModalInitialIndex(index);
+    setImageModalVisible(true);
+  };
+
+  const openCommentImageModal = (index, commentImages) => {
+    const images = commentImages.map(img => `${IMAGE_BASE_URL}${img.IMG_URL}`);
+    setModalImages(images);
+    setModalInitialIndex(index);
+    setImageModalVisible(true);
+  };
 
   const handleDeleteComment = async (commentId) => {
     Alert.alert(
@@ -277,17 +420,13 @@ const PostDetailScreen = ({ navigation }) => {
                 },
               });
 
-         
               if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.message || `Error ${response.status}: ${response.statusText}`);
               }
 
               const data = await response.json();
-
-            
               setComments(prev => prev.filter(c => c.ID_COMMENT !== commentId));
-              
               Alert.alert('Éxito', data.message || 'Comentario eliminado correctamente.');
 
             } catch (error) {
@@ -302,7 +441,6 @@ const PostDetailScreen = ({ navigation }) => {
     );
   };
 
- 
   const handlePublishResponse = async () => {
     if (!response.trim()) {
       return Alert.alert('Atención', 'El comentario no puede estar vacío.');
@@ -379,7 +517,6 @@ const PostDetailScreen = ({ navigation }) => {
     }
   };
 
-
   const pickImage = async () => {
     if (Platform.OS === 'web') {
       const input = document.createElement('input');
@@ -452,7 +589,7 @@ const PostDetailScreen = ({ navigation }) => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <FullPostView post={post} />
+        <FullPostView post={post} onImagePress={openPostImageModal} />
         
         <ResponseSection
           response={response}
@@ -468,15 +605,22 @@ const PostDetailScreen = ({ navigation }) => {
           currentUser={currentUser}
           onDeleteComment={handleDeleteComment}
           deletingCommentId={deletingCommentId}
+          onImagePress={openCommentImageModal}
         />
       </ScrollView>
+
+      <ImageModal
+        visible={imageModalVisible}
+        images={modalImages}
+        initialIndex={modalInitialIndex}
+        onClose={() => setImageModalVisible(false)}
+      />
     </View>
   );
 };
 
 export default PostDetailScreen;
 
-// 🔹 Estilos
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
@@ -517,7 +661,7 @@ const styles = StyleSheet.create({
   fullPostContainer: { 
     backgroundColor: COLORS.darkerBackground, 
     padding: 20, 
-    borderRadius: 10, 
+    borderRadius: 12, 
     marginTop: 15, 
     marginBottom: 25 
   },
@@ -532,99 +676,137 @@ const styles = StyleSheet.create({
     alignItems: 'center' 
   },
   authorAvatar: { 
-    width: 35, 
-    height: 35, 
-    borderRadius: 17.5, 
+    width: 40, 
+    height: 40, 
+    borderRadius: 20, 
     backgroundColor: COLORS.grayText, 
-    marginRight: 10 
+    marginRight: 12 
+  },
+  avatarPlaceholder: {
+    backgroundColor: COLORS.purple,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    color: COLORS.white,
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   authorName: { 
     color: COLORS.white, 
-    fontSize: 14, 
+    fontSize: 15, 
     fontWeight: 'bold' 
   },
   time: { 
     color: COLORS.grayText, 
-    fontSize: 12, 
-    marginTop: 2,
+    fontSize: 13, 
+    marginTop: 3,
   },
   postTitle: { 
     color: COLORS.white, 
     fontSize: width < 768 ? 22 : 28, 
     fontWeight: 'bold', 
-    marginBottom: 10 
+    marginBottom: 12,
+    lineHeight: width < 768 ? 28 : 36,
   },
   postDescription: { 
     color: COLORS.grayText, 
     fontSize: 16, 
     lineHeight: 24,
-    marginBottom: 10 
+    marginBottom: 15 
   },
-  imagesScroll: {
+  imagesGallery: {
     marginTop: 15,
+    position: 'relative',
+  },
+  imagesScrollContent: {
+    paddingRight: 10,
+  },
+  postImageWrapper: {
+    marginRight: 10,
+    borderRadius: 10,
+    overflow: 'hidden',
   },
   postImage: { 
     width: width < 768 ? width - 80 : 400,
-    height: width < 768 ? 200 : 300,
-    borderRadius: 8, 
-    marginRight: 10,
+    height: width < 768 ? 240 : 300,
     backgroundColor: COLORS.inputBackground 
   },
+  imageCountBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 22,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 15,
+    gap: 5,
+  },
+  imageCountText: {
+    color: COLORS.white,
+    fontSize: 13,
+    fontWeight: '600',
+  },
   responseContainer: { 
-    padding: 15, 
+    padding: 18, 
     marginBottom: 25, 
     backgroundColor: COLORS.darkerBackground, 
-    borderRadius: 10 
+    borderRadius: 12 
   },
   responseTitle: { 
     color: COLORS.white, 
     fontSize: 16, 
     fontWeight: 'bold', 
-    marginBottom: 10 
+    marginBottom: 12 
   },
   responseInputWrapper: { 
     flexDirection: 'row', 
     alignItems: 'flex-start', 
     backgroundColor: COLORS.inputBackground, 
-    borderRadius: 8, 
-    marginBottom: 10 
+    borderRadius: 10, 
+    marginBottom: 12 
   },
   responseInput: { 
     flex: 1, 
-    minHeight: 80, 
+    minHeight: 100, 
     color: COLORS.white, 
-    fontSize: 14, 
-    padding: 12, 
+    fontSize: 15, 
+    padding: 15, 
     paddingRight: 5, 
     textAlignVertical: 'top' 
   },
   attachImageButton: { 
-    padding: 10, 
+    padding: 12, 
     alignSelf: 'flex-end', 
     marginBottom: 5 
   },
   imagePreviewContainer: {
     position: 'relative',
-    marginBottom: 10,
+    marginBottom: 12,
+    borderRadius: 10,
+    overflow: 'hidden',
   },
   imagePreview: {
     width: '100%',
-    height: 150,
-    borderRadius: 8,
+    height: 200,
+    backgroundColor: COLORS.inputBackground,
   },
   removeImageButton: {
     position: 'absolute',
-    top: 5,
-    right: 5,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    borderRadius: 12,
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: 15,
+    padding: 2,
   },
   publishResponseButton: { 
     backgroundColor: COLORS.purple, 
-    borderRadius: 8, 
-    paddingVertical: 12, 
+    borderRadius: 10, 
+    paddingVertical: 14, 
     alignSelf: 'flex-end', 
-    minWidth: 150, 
+    minWidth: 170, 
     alignItems: 'center' 
   },
   publishResponseText: { 
@@ -637,41 +819,46 @@ const styles = StyleSheet.create({
   },
   commentsCount: { 
     color: COLORS.white, 
-    fontSize: 18, 
+    fontSize: 19, 
     fontWeight: 'bold', 
-    marginBottom: 15 
+    marginBottom: 18 
   },
   noCommentsText: {
     color: COLORS.grayText,
-    fontSize: 14,
+    fontSize: 15,
     textAlign: 'center',
     fontStyle: 'italic',
-    paddingVertical: 20,
+    paddingVertical: 30,
   },
   commentCard: { 
     backgroundColor: COLORS.darkerBackground, 
-    padding: 15, 
-    borderRadius: 8, 
-    marginBottom: 15 
+    padding: 16, 
+    borderRadius: 10, 
+    marginBottom: 12 
   },
   commentHeader: { 
-    marginBottom: 8 
+    marginBottom: 10 
   },
   commentAuthorInfo: { 
     flexDirection: 'row', 
     alignItems: 'center' 
   },
   commentAvatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: COLORS.grayText,
-    marginRight: 10,
+    marginRight: 12,
+  },
+  commentAvatarText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   commentAuthorName: { 
     color: COLORS.white, 
     fontWeight: 'bold', 
-    fontSize: 13 
+    fontSize: 14 
   },
   commentTime: { 
     color: COLORS.grayText, 
@@ -680,26 +867,27 @@ const styles = StyleSheet.create({
   },
   commentText: { 
     color: COLORS.white, 
-    fontSize: 14, 
-    lineHeight: 20,
+    fontSize: 15, 
+    lineHeight: 22,
     marginBottom: 10 
   },
   commentImage: {
     width: '100%',
-    height: 200,
-    borderRadius: 8,
-    marginTop: 5,
+    height: 220,
+    borderRadius: 10,
+    marginTop: 8,
+    backgroundColor: COLORS.inputBackground,
   },
   deleteCommentButton: {
     marginLeft: 10,
     backgroundColor: 'rgba(255,0,0,0.15)',
-    borderRadius: 6,
-    padding: 6,
+    borderRadius: 8,
+    padding: 8,
   },
   loadingText: {
     color: COLORS.grayText,
     marginTop: 10,
-    fontSize: 14,
+    fontSize: 15,
   },
   errorText: {
     color: COLORS.grayText,
@@ -710,11 +898,111 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.purple,
     paddingHorizontal: 30,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   backButtonErrorText: {
     color: COLORS.white,
     fontWeight: 'bold',
     fontSize: 15,
+  },
+
+  // Image Modal Styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 50 : 20,
+    right: 20,
+    zIndex: 100,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalImageCounter: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 50 : 20,
+    left: 20,
+    zIndex: 100,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  modalImageCounterText: {
+    color: COLORS.white,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  modalImageContainer: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  modalImage: {
+    width: '100%',
+    height: '100%',
+    maxWidth: 1200,
+    maxHeight: '80%',
+  },
+  modalNavButton: {
+    position: 'absolute',
+    top: '50%',
+    transform: [{ translateY: -25 }],
+    zIndex: 100,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalNavButtonLeft: {
+    left: 20,
+  },
+  modalNavButtonRight: {
+    right: 20,
+  },
+  thumbnailContainer: {
+    position: 'absolute',
+    bottom: 20,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+  },
+  thumbnailScroll: {
+    paddingHorizontal: 20,
+    alignItems: 'center',
+  },
+  thumbnail: {
+    width: 60,
+    height: 60,
+    marginHorizontal: 4,
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  thumbnailActive: {
+    borderColor: COLORS.purple,
+  },
+  thumbnailImage: {
+    width: '100%',
+    height: '100%',
   },
 });
