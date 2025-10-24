@@ -341,28 +341,64 @@ export default function UserProfileScreen({ navigation }) {
               <TextInput value={profile.email} editable={false} style={[styles.input, styles.inputDisabled]} />
             </View>
 
-            <View style={styles.field}>
-              <Text style={styles.label}>Fecha de Nacimiento</Text>
-              <TouchableOpacity
-                style={[styles.input, { justifyContent: 'center' }]}
-                onPress={() => setShowDatePicker(true)}
-              >
-                <Text style={{ color: profile.birthDate ? '#fff' : '#6b7a84' }}>
-                  {profile.birthDate ? formatDate(profile.birthDate) : "Selecciona tu fecha"}
-                </Text>
-              </TouchableOpacity>
+           <View style={styles.field}>
+  <Text style={styles.label}>Fecha de Nacimiento</Text>
 
-              {showDatePicker && (
-                <DateTimePicker
-                  value={profile.birthDate || new Date()}
-                  mode="date"
-                  display="default"
-                  onChange={onDateChange}
-                  maximumDate={new Date()}
-                />
-              )}
-            </View>
+  {Platform.OS === 'web' ? (
+    <input
+      type="date"
+      value={profile.birthDate && profile.birthDate instanceof Date && !isNaN(profile.birthDate)
+        ? profile.birthDate.toISOString().split('T')[0]
+        : ''
+      }
+      onChange={(e) => {
+        if (e.target.value) {
+          const [year, month, day] = e.target.value.split('-').map(Number);
+          const newDate = new Date(year, month - 1, day);
+          onChange('birthDate', newDate);
+        } else {
+          onChange('birthDate', null);
+        }
+      }}
+      style={{
+        backgroundColor: '#1e2228',
+        color: '#fff',
+        padding: 12,
+        borderRadius: 8,
+        border: '1px solid #3a3f47',
+        fontSize: 16,
+        outline: 'none',
+        width: '100%',
+      }}
+    />
+  ) : (
+    <>
+      <TouchableOpacity
+        style={[styles.input, { justifyContent: 'center' }]}
+        onPress={() => setShowDatePicker(true)}
+      >
+        <Text style={{ color: profile.birthDate && profile.birthDate instanceof Date && !isNaN(profile.birthDate) ? '#fff' : '#6b7a84' }}>
+          {profile.birthDate && profile.birthDate instanceof Date && !isNaN(profile.birthDate)
+            ? formatDate(profile.birthDate)
+            : "Selecciona tu fecha"}
+        </Text>
+      </TouchableOpacity>
 
+      {showDatePicker && (
+        <DateTimePicker
+          value={profile.birthDate && profile.birthDate instanceof Date && !isNaN(profile.birthDate)
+            ? profile.birthDate
+            : new Date()
+          }
+          mode="date"
+          display="default"
+          onChange={onDateChange}
+          maximumDate={new Date()}
+        />
+      )}
+    </>
+  )}
+</View>
             <View style={styles.field}>
               <Text style={styles.label}>Biografía</Text>
               <TextInput

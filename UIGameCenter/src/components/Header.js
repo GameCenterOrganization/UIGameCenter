@@ -23,8 +23,16 @@ const Header = ({ activeTab = 'Búsqueda', searchText, onSearchChange, onClearSe
   ];
 
   const handleTabPress = (tabId) => {
-    if (tabId === 'search') return;
-    Alert.alert('Próximamente', `La sección ${tabId} estará disponible pronto.`);
+
+    if (tabId === 'comunidad') {
+      navigation.navigate('Community'); // Usa el nuevo nombre de ruta
+      return;
+    }
+
+    if (tabId === 'search')
+    {  navigation.navigate('Home');
+   return;}
+  
   };
 
   const handleAccountPress = () => {
@@ -95,14 +103,14 @@ const Header = ({ activeTab = 'Búsqueda', searchText, onSearchChange, onClearSe
             <Text style={styles.clearButtonText}>✕</Text>
           </TouchableOpacity>
         )}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.accountButton}
           onPress={handleAccountPress}
         >
           <Text style={styles.accountText}>👤 Mi Cuenta</Text>
         </TouchableOpacity>
         {currentUser && (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.logoutButton}
             onPress={handleLogout}
           >
@@ -118,7 +126,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#16213e',
+    backgroundColor: '#0f121f',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,

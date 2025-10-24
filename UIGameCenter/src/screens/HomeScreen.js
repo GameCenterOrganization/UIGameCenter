@@ -163,7 +163,7 @@ const HomeScreen = ({ navigation }) => {
       />
 
       <LinearGradient
-        colors={['#6b46c1', '#06b6d4']}
+        colors={['#6b46c1', '#9775fd']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.heroBanner}
@@ -276,7 +276,7 @@ const HomeScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#0f121f',
     minHeight: '100vh',
   },
   scrollContentContainer: {
