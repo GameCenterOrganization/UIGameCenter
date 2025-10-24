@@ -450,6 +450,7 @@ const HomeScreen = () => {
         {Content}
       </ScrollView>
     </View>
+    
   );
 };
 const styles = StyleSheet.create({

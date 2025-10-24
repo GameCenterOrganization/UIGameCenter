@@ -6,135 +6,157 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  Dimensions,
 } from 'react-native';
+import { useAuth } from '../screens/UserScreen/Auth/AuthContext';
+import { useNavigation } from '@react-navigation/native';
 
-const { width } = Dimensions.get('window');
-const MAX_HEADER_WIDTH = 1400;
+const Header = ({ activeTab = 'Búsqueda', searchText, onSearchChange, onClearSearch }) => {
+  const navigation = useNavigation();
+  const { logout, currentUser } = useAuth();
+  const [localSearchText, setLocalSearchText] = useState(searchText || '');
 
-const Header = ({ activeTab = 'Search', onTabPress }) => {
   const tabs = [
-    { id: 'search', name: 'Search', icon: '🔍' },
-    { id: 'comparison', name: 'Comparison', icon: '📈' },
-    { id: 'marketplace', name: 'Marketplace', icon: '🛒' },
-    { id: 'community', name: 'Community', icon: '💬' },
+    { id: 'search', name: 'Búsqueda', icon: '' },
+    { id: 'comparador', name: 'Comparador', icon: '' },
+    { id: 'marketplace', name: 'Marketplace', icon: '' },
+    { id: 'comunidad', name: 'Comunidad', icon: '' },
   ];
 
   const handleTabPress = (tabId) => {
-    if (onTabPress) {
-        onTabPress(tabId);
-    } else if (tabId === 'search') {
 
-      return; 
-    } else {
-      Alert.alert('Coming Soon', `The ${tabId} section will be available shortly.`);
+    if (tabId === 'comunidad') {
+      navigation.navigate('Community'); // Usa el nuevo nombre de ruta
+      return;
     }
-};
+
+    if (tabId === 'search')
+    {  navigation.navigate('Home');
+   return;}
+  
+  };
 
   const handleAccountPress = () => {
-    Alert.alert('My Account', 'Account functionality coming soon.');
+    if (!currentUser) {
+      navigation.navigate('Login');
+    } else {
+      navigation.navigate('Profile');
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      });
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error.message);
+    }
   };
 
   return (
-    <View style={styles.headerContainer}>
-      <View style={styles.headerContent}>
-        {/* Left - Logo and Tabs */}
-        <View style={styles.headerLeft}>
-          <Text style={styles.logo}>
-            <Text style={styles.logoIcon}>🎮</Text> GameCenter 
-          </Text>
-          {/* Main Tabs*/}
-          <View style={styles.headerTabs}>
-            {tabs.map((tab) => (
-              <TouchableOpacity
-                key={tab.id}
-                style={[
-                  styles.tab,
-                  activeTab.toLowerCase() === tab.name.toLowerCase() && styles.activeTab
-                ]}
-                onPress={() => handleTabPress(tab.id)}
-              >
-                <Text style={[
-                  styles.tabText,
-                  activeTab.toLowerCase() === tab.name.toLowerCase() && styles.activeTabText
-                ]}>
-                  {tab.icon} {tab.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-        <View style={styles.headerRight}>
-          {/* Small Search Bar in the Header*/}
-          <View style={styles.headerSearch}>
-            <Text style={styles.headerSearchIcon}>🔍</Text>
-            <TextInput
-              style={styles.headerSearchInput}
-              placeholder="Search games..."
-              placeholderTextColor="#777"
-              editable={false} 
-            />
-          </View>
+    <View style={styles.header}>
+      {/* Logo */}
+      <View style={styles.headerLeft}>
+        <Text style={styles.logo}>🎮 GameCenter</Text>
+      </View>
 
-          <TouchableOpacity 
-            style={styles.accountButton}
-            onPress={handleAccountPress}
+      {/* Navigation Tabs */}
+      <View style={styles.headerTabs}>
+        {tabs.map((tab) => (
+          <TouchableOpacity
+            key={tab.id}
+            style={[
+              styles.tab,
+              activeTab === tab.name && styles.activeTab
+            ]}
+            onPress={() => handleTabPress(tab.id)}
           >
-            <Text style={styles.accountText}>👤 My Account</Text>
+            <Text style={[
+              styles.tabText,
+              activeTab === tab.name && styles.activeTabText
+            ]}>
+              {tab.icon} {tab.name}
+            </Text>
           </TouchableOpacity>
-        </View>
+        ))}
+      </View>
+
+      {/* Right side - Search, Account & Logout */}
+      <View style={styles.headerRight}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Buscar juegos..."
+          placeholderTextColor="#888"
+          value={localSearchText}
+          onChangeText={(text) => {
+            setLocalSearchText(text);
+            onSearchChange && onSearchChange(text);
+          }}
+        />
+        {localSearchText.length > 0 && (
+          <TouchableOpacity onPress={() => {
+            setLocalSearchText('');
+            onClearSearch && onClearSearch();
+          }}>
+            <Text style={styles.clearButtonText}>✕</Text>
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity
+          style={styles.accountButton}
+          onPress={handleAccountPress}
+        >
+          <Text style={styles.accountText}>👤 Mi Cuenta</Text>
+        </TouchableOpacity>
+        {currentUser && (
+          <TouchableOpacity
+            style={styles.logoutButton}
+            onPress={handleLogout}
+          >
+            <Text style={styles.logoutText}>Cerrar Sesión</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  headerContainer: {
-    backgroundColor: '#11121c',
-    borderBottomWidth: 1,
-    borderBottomColor: '#1a1b2c',
-    width: '100%',
-    paddingVertical: 12,
-  },
-  headerContent: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
-    maxWidth: MAX_HEADER_WIDTH,
-    alignSelf: 'center',
-    paddingHorizontal: 32,
+    backgroundColor: '#0f121f',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2a2a3e',
   },
   headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
     flex: 1,
   },
   logo: {
     color: '#8b5cf6',
-    fontSize: 24,
+    fontSize: 16,
     fontWeight: 'bold',
-    marginRight: 30, 
-  },
-  logoIcon: {
-    fontSize: 24,
   },
   headerTabs: {
     flexDirection: 'row',
+    flex: 2,
+    justifyContent: 'center',
   },
   tab: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingVertical: 8,
     marginHorizontal: 4,
     borderRadius: 20,
-    transitionDuration: '0.2s',
   },
   activeTab: {
-    backgroundColor: 'rgba(139, 92, 246, 0.2)', 
-    borderColor: '#8b5cf6',
+    backgroundColor: '#8b5cf6',
   },
   tabText: {
-    color: '#aaa',
-    fontSize: 14,
+    color: '#888',
+    fontSize: 12,
     fontWeight: '500',
   },
   activeTabText: {
@@ -144,38 +166,43 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-  headerSearch: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1a1b2c',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    width: 180, 
-    marginRight: 16,
-    borderWidth: 1,
-    borderColor: '#3a3a4e',
-  },
-  headerSearchIcon: {
-    color: '#777',
-    fontSize: 12,
-    marginRight: 4,
-  },
-  headerSearchInput: {
-    color: '#ccc',
-    fontSize: 12,
-    padding: 0,
     flex: 1,
+    justifyContent: 'flex-end',
+    gap: 8,
+  },
+  searchInput: {
+    backgroundColor: '#2a2a3e',
+    color: 'white',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    width: 150,
+    fontSize: 12,
+  },
+  clearButtonText: {
+    color: '#888',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginLeft: 4,
   },
   accountButton: {
     paddingHorizontal: 8,
   },
   accountText: {
     color: 'white',
-    fontSize: 14,
-    fontWeight: '500',},
+    fontSize: 12,
+  },
+  logoutButton: {
+    backgroundColor: '#ff3b30',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  logoutText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
 });
 
 export default Header;

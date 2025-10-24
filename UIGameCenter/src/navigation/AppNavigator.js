@@ -1,13 +1,16 @@
+// src/navigation/AppNavigator.js
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
 import HomeScreen from '../screens/HomeScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import LoginScreen from '../screens/UserScreen/LoginScreen/LoginScreen';
 import RegisterScreen from '../screens/UserScreen/RegisterScreen/RegisterScreen';
 import UserProfileScreen from '../screens/UserScreen/ProfileScreen/UserProfileScreen';
 import ProtectedRoute from '../screens/UserScreen/Auth/ProtectedRoute';
-import GameDetailsScreen from '../components/GameDetailsScreen'; 
+import CommunityScreen from '../screens/CommunityScreen'; 
+import PostDetailScreen from '../screens/PostDetailScreen'; 
 
 const Stack = createNativeStackNavigator();
 
@@ -18,14 +21,21 @@ const AppNavigator = () => {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Register" component={RegisterScreen} />
-        <Stack.Screen name="Settings" component={SettingsScreen} />
-        <Stack.Screen name="GameDetails" component={GameDetailsScreen} />
+        <Stack.Screen name="Community" component={CommunityScreen} />
+        <Stack.Screen name="PostDetail"component={PostDetailScreen}/>
 
-
-        <Stack.Screen name="Profile" options={{ title: 'Profile' }}>
+        <Stack.Screen name="Profile">
           {props => (
-            <ProtectedRoute navigation={props.navigation}>
+            <ProtectedRoute>
               <UserProfileScreen {...props} />
+            </ProtectedRoute>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="Settings">
+          {props => (
+            <ProtectedRoute>
+              <SettingsScreen {...props} />
             </ProtectedRoute>
           )}
         </Stack.Screen>

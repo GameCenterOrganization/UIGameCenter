@@ -162,7 +162,7 @@ export default function RegisterScreen({ navigation }) {
     };
 
     const onGuest = () => {
-        alert("Continuar como invitado (simulado)");
+        alert("Continuar como invitado ");
         navigation.navigate("Home");
     };
 
