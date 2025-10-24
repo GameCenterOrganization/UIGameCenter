@@ -11,6 +11,7 @@ import UserProfileScreen from '../screens/UserScreen/ProfileScreen/UserProfileSc
 import ProtectedRoute from '../screens/UserScreen/Auth/ProtectedRoute';
 import CommunityScreen from '../screens/CommunityScreen'; 
 import PostDetailScreen from '../screens/PostDetailScreen'; 
+import GameDetailsScreen from '../components/GameDetailsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -23,6 +24,7 @@ const AppNavigator = () => {
         <Stack.Screen name="Register" component={RegisterScreen} />
         <Stack.Screen name="Community" component={CommunityScreen} />
         <Stack.Screen name="PostDetail"component={PostDetailScreen}/>
+        <Stack.Screen name="GameDetails" component={GameDetailsScreen} />
 
         <Stack.Screen name="Profile">
           {props => (
