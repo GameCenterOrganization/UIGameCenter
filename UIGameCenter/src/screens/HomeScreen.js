@@ -16,7 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Header from '../components/Header';
 import Categories from '../components/Categories';
 import GameCard from '../components/GameCard';
-
+import FloatingChat from '../components/FloatingChat';
 const MAX_CONTENT_WIDTH = 1200; 
 
 const useDebounce = (value, delay) => {
@@ -445,6 +445,7 @@ const HomeScreen = () => {
               />
             )}
         </View>
+        <FloatingChat visible={true} fullScreen={false} />
       </>
     ),
     [
