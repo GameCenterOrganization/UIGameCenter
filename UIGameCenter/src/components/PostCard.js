@@ -11,7 +11,7 @@ const CARD_PADDING = width < 768 ? 16 : 40;
 const CARD_MAX_WIDTH = isWeb ? 800 : 700;
 const CARD_WIDTH = Math.min(width - (CARD_PADDING * 2), CARD_MAX_WIDTH);
 const IMAGE_WIDTH = CARD_WIDTH - 30;
-const IMAGE_HEIGHT = width > 1200 ? IMAGE_WIDTH * 0.55 : IMAGE_WIDTH * 0.6; // Menor altura en pantallas grandes
+const IMAGE_HEIGHT = width > 1200 ? IMAGE_WIDTH * 0.55 : IMAGE_WIDTH * 0.6; 
 
 const PostCard = ({ post, onPress, currentUser, onDelete }) => {
   const { 
@@ -92,7 +92,6 @@ const PostCard = ({ post, onPress, currentUser, onDelete }) => {
   return (
     <View style={styles.cardContainer}>
       <TouchableOpacity onPress={() => onPress(post)} style={styles.card} activeOpacity={0.95}>
-        {/* Header */}
         <View style={styles.header}>
           <View style={styles.gameInfo}>
             <View style={styles.gameLogoPlaceholder}>
@@ -116,11 +115,9 @@ const PostCard = ({ post, onPress, currentUser, onDelete }) => {
           </View>
         </View>
 
-        {/* Title & Description */}
         <Text style={styles.title} numberOfLines={2}>{POST_TITLE_DSC}</Text>
         <Text style={styles.description} numberOfLines={3}>{POST_CONTENT_DSC}</Text>
 
-        {/* Images */}
         {imageList.length > 0 && (
           <View style={styles.imageContainer}>
             <ScrollView
@@ -145,7 +142,7 @@ const PostCard = ({ post, onPress, currentUser, onDelete }) => {
                   activeOpacity={0.9}
                 >
                   <Image
-                    source={{ uri: `http://localhost:8080${uri}` }}
+                    source={{ uri: `http://192.168.0.9:8080${uri}` }}
                     style={styles.mainImage}
                     resizeMode="cover"
                   />
@@ -172,7 +169,7 @@ const PostCard = ({ post, onPress, currentUser, onDelete }) => {
           <View style={styles.authorInfo}>
             {user?.PROFILE_PIC ? (
               <Image 
-                source={{ uri: `http://localhost:8080${user.PROFILE_PIC}` }} 
+                source={{ uri: `http://192.168.0.9:8080${user.PROFILE_PIC}` }} 
                 style={styles.authorAvatar} 
               />
             ) : (

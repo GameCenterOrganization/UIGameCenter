@@ -10,11 +10,11 @@ const { width } = Dimensions.get('window');
 
 const getApiBaseUrl = () => {
   if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:8080/api';
+    return 'http://192.168.0.9:8080/api';
   } else if (Platform.OS === 'ios') {
-    return 'http://localhost:8080/api';
+    return 'http://192.168.0.9:8080/api';
   } else {
-    return 'http://localhost:8080/api';
+    return 'http://192.168.0.9:8080/api';
   }
 };
 
@@ -24,17 +24,16 @@ const COMMENTS_URL = `${API_BASE_URL}/comments`;
 
 const getImageBaseUrl = () => {
   if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:8080';
+    return 'http://192.168.0.9:8080';
   } else if (Platform.OS === 'ios') {
-    return 'http://localhost:8080';
+    return 'http://192.168.0.9:8080';
   } else {
-    return 'http://localhost:8080';
+    return 'http://192.168.0.9:8080';
   }
 };
 
 const IMAGE_BASE_URL = getImageBaseUrl();
 
-// Image Modal Component
 const ImageModal = ({ visible, images, initialIndex, onClose }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
 
@@ -57,12 +56,10 @@ const ImageModal = ({ visible, images, initialIndex, onClose }) => {
       <View style={styles.modalContainer}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose} />
         
-        {/* Close Button */}
         <TouchableOpacity style={styles.closeButton} onPress={onClose}>
           <Ionicons name="close" size={28} color={COLORS.white} />
         </TouchableOpacity>
 
-        {/* Image Counter */}
         {images.length > 1 && (
           <View style={styles.modalImageCounter}>
             <Text style={styles.modalImageCounterText}>
@@ -71,7 +68,6 @@ const ImageModal = ({ visible, images, initialIndex, onClose }) => {
           </View>
         )}
 
-        {/* Main Image */}
         <View style={styles.modalImageContainer}>
           <Image
             source={{ uri: images[currentIndex] }}
@@ -80,7 +76,6 @@ const ImageModal = ({ visible, images, initialIndex, onClose }) => {
           />
         </View>
 
-        {/* Navigation Arrows */}
         {images.length > 1 && (
           <>
             <TouchableOpacity 

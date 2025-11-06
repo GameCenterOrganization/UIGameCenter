@@ -17,22 +17,11 @@ import { LinearGradient } from "expo-linear-gradient";
 import { MaterialCommunityIcons, FontAwesome, Feather } from "@expo/vector-icons";
 import { useForm, Controller } from "react-hook-form";
 import { RegisterStyle } from "./RegisterStyle.js";
-
-//Firebase implementation
-
 import { auth, googleProvider } from "../firebaseConfig.js";
 import { createUserWithEmailAndPassword, signInWithCredential, GoogleAuthProvider, OAuthProvider } from "firebase/auth";
 import * as Google from "expo-auth-session/providers/google";
 import { makeRedirectUri } from "expo-auth-session";
 
-/**
- * LoginScreen
- * - Componente autocontenido
- * - Usa react-hook-form para validación
- * 
- * 
- * 
- */
 
 export default function RegisterScreen({ navigation }) {
 
@@ -75,7 +64,7 @@ export default function RegisterScreen({ navigation }) {
             const user = userCredential.user;
             const idToken = await user.getIdToken();
 
-            fetch("http://localhost:8080/api/users/register", {
+            fetch("http://192.168.0.9:8080/api/users/register", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -198,7 +187,7 @@ export default function RegisterScreen({ navigation }) {
                         </Text>
 
                         <View style={RegisterStyle.previewImageContainer}>
-                            {/* Imagen decorativa: puedes reemplazar por Image si tienes archivo */}
+
                             <Image
                                 source={{
                                     uri: "https://images.unsplash.com/photo-1563089145-599997674d42?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
@@ -339,7 +328,6 @@ export default function RegisterScreen({ navigation }) {
                                             />
                                         </View>
 
-                                        {/* Mostrar el error correcto: errors.confirmPassword */}
                                         {errors.confirmPassword && <Text style={RegisterStyle.errorText}>{errors.confirmPassword.message}</Text>}
                                     </View>
                                 )}
@@ -372,14 +360,12 @@ export default function RegisterScreen({ navigation }) {
                                 </LinearGradient>
                             </TouchableOpacity>
 
-                            {/* Divider with text */}
                             <View style={RegisterStyle.dividerRow}>
                                 <View style={RegisterStyle.dividerLine} />
                                 <Text style={RegisterStyle.dividerText}>O CONTINÚA CON</Text>
                                 <View style={RegisterStyle.dividerLine} />
                             </View>
 
-                            {/* Social buttons */}
                             <View style={RegisterStyle.socialRow}>
                                 <TouchableOpacity style={RegisterStyle.socialBtn} onPress={onGoogle}>
                                     <FontAwesome name="google" size={18} color="#7a7a7a" />
