@@ -15,6 +15,7 @@ import GroupDiscoveryScreen from '../screens/GroupDiscoveryScreen';
 import GroupDetailView from '../screens/GroupDetailView';
 import CreateGroupScreen from '../screens/CreateGroupScreen';
 import CreateEventScreen from '../screens/CreateEventScreen';  
+import EditGroupScreen from '../screens/EditGroupScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -33,7 +34,7 @@ const AppNavigator = () => {
        
         <Stack.Screen name="GroupDetail" component={GroupDetailView} />
         <Stack.Screen name="CreateGroup" component={CreateGroupScreen} />
-       
+       <Stack.Screen name="EditGroupScreen" component={EditGroupScreen} />
         <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
 
     

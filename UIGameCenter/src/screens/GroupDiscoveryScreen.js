@@ -23,38 +23,39 @@ const getFirebaseToken = async () => {
 };
 
 const mapApiToGroupCard = (group) => {
-    const isStreamer = !!group.streamerInfo; 
+    const isStreamer = group.COMMUNITY_TYPE_DSC === 'STREAMER'; 
+    const hasStreamerInfo = !!group.streamerInfo; 
     const isLive = isStreamer && group.streamerInfo?.IS_LIVE_BOOL; 
-    
-     const membersTotal = group.GROUP_MEMBER_COUNT ? group.GROUP_MEMBER_COUNT.toLocaleString('es-ES') : '0';
-
+    const membersTotal = group.MEMBER_COUNT ? group.MEMBER_COUNT.toLocaleString('es-ES') : '0';
     const imagePath = group.PROFILE_IMG_URL || group.BANNER_IMG_URL;
+    const imageUri = imagePath ? `${BASE_URL}${imagePath}` : null;
+    
+    const cardSubtitle = group.COMMUNITY_TYPE_DSC === 'GAME' ? 'Comunidad de Juego' : 'Comunidad de Streamer';
 
     return {
         id: group.ID_GROUP, 
         title: group.GROUP_NAME_DSC,
-        subtitle: group.COMMUNITY_TYPE_DSC,
+        subtitle: cardSubtitle, 
         members: membersTotal,
-        imageUri: imagePath 
-            ? `${BASE_URL}${imagePath}` 
-            : 'https://picsum.photos/400/200?random=' + group.ID_GROUP,
+        imageUri: imageUri, 
         isTrending: membersTotal > 10000,
-        isStreamer: isStreamer,
+        isStreamer: isStreamer, 
         isLive: isLive,
-        liveSpectators: isLive ? (group.streamerInfo.LIVE_SPECTATORS_INT ? group.streamerInfo.LIVE_SPECTATORS_INT.toLocaleString('es-ES') : 'N/A') : undefined,
-        streamLink: isStreamer ? group.streamerInfo.STREAM_LINK_DSC : undefined,
+        liveSpectators: isLive 
+            ? (hasStreamerInfo && group.streamerInfo.LIVE_SPECTATORS_INT ? group.streamerInfo.LIVE_SPECTATORS_INT.toLocaleString('es-ES') : 'N/A') 
+            : undefined,
+        streamLink: isStreamer ? group.streamerInfo?.STREAMER_LINK_DSC : undefined, 
     };
 };
 
 const GroupDiscoveryScreen = ({ navigation }) => {
-    const [activeType, setActiveType] = useState('Juegos');
-    const [groupsData, setGroupsData] = useState({ Juegos: [], Streamers: [] }); // Reemplaza MOCK_DATA
+    const [activeType, setActiveType] = useState('Juegos'); 
+    const [groupsData, setGroupsData] = useState({ Juegos: [], Streamers: [] }); 
     const [loading, setLoading] = useState(true);
 
     const fetchGroups = useCallback(async () => {
         setLoading(true);
         try {
-
             const response = await fetch(API_URL, {
                 method: 'GET',
                 headers: {
@@ -68,14 +69,16 @@ const GroupDiscoveryScreen = ({ navigation }) => {
             }
 
             const data = await response.json();
+            console.log('Grupos recibidos de la API:', data.groups);
             
-           const mappedGroups = (data.groups || []).map(mapApiToGroupCard); 
+            const mappedGroups = (data.groups || []).map(mapApiToGroupCard); 
             
             const classifiedGroups = {
-               Juegos: mappedGroups.filter(g => !g.isStreamer),
-                Streamers: mappedGroups.filter(g => g.isStreamer),
+                Juegos: mappedGroups.filter(g => g.isStreamer === false),
+                Streamers: mappedGroups.filter(g => g.isStreamer === true),
             };
 
+            console.log('Grupos clasificados:', classifiedGroups); 
             setGroupsData(classifiedGroups);
         } catch (error) {
             console.error('Error fetching groups:', error);
@@ -90,7 +93,12 @@ const GroupDiscoveryScreen = ({ navigation }) => {
         fetchGroups();
     }, [fetchGroups]);
 
-    const currentGroups = groupsData[activeType];
+    const handleGroupCreated = useCallback(() => {
+        console.log('Recargando grupos después de crear uno nuevo...');
+        fetchGroups();
+    }, [fetchGroups]);
+
+    const currentGroups = groupsData[activeType]; 
 
     const navigateToGroupDetail = (group) => {
         navigation.navigate('GroupDetail', { groupData: group });
@@ -99,7 +107,7 @@ const GroupDiscoveryScreen = ({ navigation }) => {
     return (
         <SafeAreaView style={styles.container}>
             <ScrollView contentContainerStyle={styles.scrollContent}>
-  
+ 
                 <View style={styles.headerContainer}>
                     <Text style={styles.mainTitle}>Grupos y Comunidades</Text>
                     <Text style={styles.subtitle}>Únete a grupos de juegos y comunidades de streamers</Text>
@@ -108,7 +116,9 @@ const GroupDiscoveryScreen = ({ navigation }) => {
                 <View style={styles.actionButtonsContainer}>
                     <TouchableOpacity
                         style={[styles.actionButton, styles.createGroupButton]}
-                        onPress={() => navigation.navigate('CreateGroup')} 
+                        onPress={() => navigation.navigate('CreateGroup', {
+                            onGroupCreated: handleGroupCreated 
+                        })} 
                     >
                         <Text style={styles.actionButtonText}>Crear Grupo</Text>
                     </TouchableOpacity>
@@ -120,7 +130,6 @@ const GroupDiscoveryScreen = ({ navigation }) => {
                         <Text style={styles.actionButtonText}>Programar Evento</Text>
                     </TouchableOpacity>
                 </View>
-
 
                 <View style={styles.toggleBarContainer}>
                     <TouchableOpacity
@@ -145,6 +154,9 @@ const GroupDiscoveryScreen = ({ navigation }) => {
                         {currentGroups.map(group => (
                             <GroupCardComponent key={group.id} group={group} onPress={() => navigateToGroupDetail(group)} />
                         ))}
+                         {currentGroups.length === 0 && (
+                             <Text style={styles.noDataText}>No hay grupos disponibles en esta categoría.</Text>
+                        )}
                     </View>
                 )}
                 
@@ -157,7 +169,6 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: COLORS.darkBackground },
     scrollContent: { paddingHorizontal: 14, paddingBottom: 20 },
 
-    // --- Header ---
     headerContainer: {
         paddingVertical: 10,
     },
@@ -173,7 +184,7 @@ const styles = StyleSheet.create({
         marginBottom: 15,
     },
     
-     actionButtonsContainer: {
+    actionButtonsContainer: {
         position: 'absolute',
         top: 10,
         right: 14,
@@ -195,7 +206,7 @@ const styles = StyleSheet.create({
     createGroupButton: {},
     scheduleEventButton: {},
 
-   toggleBarContainer: {
+    toggleBarContainer: {
         flexDirection: 'row',
         backgroundColor: COLORS.inputBackground, 
         borderRadius: 10,
@@ -220,7 +231,6 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
 
-    // --- Grid ---
     gridContainer: {
         flexDirection: 'row',
         flexWrap: 'wrap',
@@ -228,6 +238,13 @@ const styles = StyleSheet.create({
     },
     loader: {
         marginTop: 50,
+    },
+    noDataText: {
+        color: COLORS.grayText,
+        textAlign: 'center',
+        marginTop: 30,
+        width: '100%',
+        fontSize: 16,
     }
 });
 
