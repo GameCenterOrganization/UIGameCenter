@@ -9,16 +9,16 @@ import {
 
 const Categories = ({ selectedCategory, onCategorySelect }) => {
   const categories = [
-    'Todos', 
-    'Acción', 
-    'Aventura', 
-    'RPG', 
-    'Estrategia', 
-    'Shooter', 
-    'Deportes', 
-    'Carreras', 
-    'Puzzle', 
-    'Simulación'
+    'All',
+    'Action',
+    'Adventure',
+    'RPG',
+    'Strategy',
+    'Shooter',
+    'Sports',
+    'Racing',
+    'Puzzle',
+    'Simulation',
   ];
 
   return (
@@ -31,11 +31,11 @@ const Categories = ({ selectedCategory, onCategorySelect }) => {
       {categories.map((category) => (
         <TouchableOpacity
           key={category}
+          onPress={() => onCategorySelect(category)} 
           style={[
             styles.categoryButton,
             selectedCategory === category && styles.activeCategoryButton
           ]}
-          onPress={() => onCategorySelect(category)}
         >
           <Text style={[
             styles.categoryText,
@@ -53,18 +53,21 @@ const styles = StyleSheet.create({
   categoriesContainer: {
     flexGrow: 0,
     marginBottom: 16,
+    paddingHorizontal: 0,
   },
   categoriesContent: {
     paddingRight: 16,
   },
   categoryButton: {
-    backgroundColor: '#2a2a3e',
+    backgroundColor: '#1b1b36',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 20,
+    borderRadius: 8, 
     marginRight: 8,
     minHeight: 40,
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#3a3a4e',
   },
   activeCategoryButton: {
     backgroundColor: '#8b5cf6',
@@ -73,9 +76,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 10,
     elevation: 5,
+    borderColor: '#8b5cf6', 
   },
   categoryText: {
-    color: '#888',
+    color: '#ccc', 
     fontSize: 14,
     fontWeight: '500',
   },
