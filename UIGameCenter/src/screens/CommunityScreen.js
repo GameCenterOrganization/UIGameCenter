@@ -18,10 +18,11 @@ import CreatePostModal from './CreatePostModal';
 import COLORS from '../constants/Colors';
 import Header from '../components/Header';
 import { getAuth } from 'firebase/auth';
+import GroupDiscoveryScreen from './GroupDiscoveryScreen';
 
 const { width } = Dimensions.get('window');
 const FILTER_OPTIONS = ['Todos', 'Más Recientes', 'Más Populares', 'Más Comentados', 'Sólo Tendencias'];
-const API_URL = "http://localhost:8080/api/post";
+const API_URL = "http://192.168.0.9:8080/api/post";
 
 const CommunityScreen = React.memo(({ navigation }) => {
   const [filterVisible, setFilterVisible] = useState(false);
@@ -143,7 +144,6 @@ const CommunityScreen = React.memo(({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      {/* Modal de filtros */}
       <Modal transparent visible={filterVisible} animationType="fade" onRequestClose={() => setFilterVisible(false)}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setFilterVisible(false)}>
           <View style={styles.filterMenu}>
@@ -163,45 +163,51 @@ const CommunityScreen = React.memo(({ navigation }) => {
         </TouchableOpacity>
       </Modal>
 
-      {loading ? (
-        <ActivityIndicator size="large" color={COLORS.purple} style={{ marginTop: 50 }} />
+      {activeTab === 'Clubes' ? (
+      
+        <GroupDiscoveryScreen navigation={navigation} />
       ) : (
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        >
-          <Text style={styles.sectionTitle}>
-            {activeTab === 'Foros'
-              ? searchQuery
-                ? `Resultados para "${searchQuery}"`
-                : `Posts ${selectedFilter === 'Todos' ? '' : `- ${selectedFilter}`}`
-              : 'Clubes Populares'}
+  
+        <>
+          <Text style={[styles.sectionTitle, { paddingHorizontal: 14 }]}>
+            {searchQuery
+              ? `Resultados para "${searchQuery}"`
+              : `Posts ${selectedFilter === 'Todos' ? '' : `- ${selectedFilter}`}`}
           </Text>
 
-          {filteredPosts.length === 0 ? (
-            <Text style={styles.noResultsText}>No se encontraron posts que coincidan.</Text>
+          {loading ? (
+            <ActivityIndicator size="large" color={COLORS.purple} style={{ marginTop: 50 }} />
           ) : (
-            filteredPosts.map(post => (
-              <PostCard
-                key={post.ID_POST}
-                post={post}
-                onPress={() => navigateToDetail(post.ID_POST)}
-                currentUser={currentUser}
-                onDelete={handleDeletePost}
-              />
-            ))
+            <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            >
+              {filteredPosts.length === 0 ? (
+                <Text style={styles.noResultsText}>No se encontraron posts que coincidan.</Text>
+              ) : (
+                filteredPosts.map(post => (
+                  <PostCard
+                    key={post.ID_POST}
+                    post={post}
+                    onPress={() => navigateToDetail(post.ID_POST)}
+                    currentUser={currentUser}
+                    onDelete={handleDeletePost}
+                  />
+                ))
+              )}
+            </ScrollView>
           )}
-        </ScrollView>
+        </>
       )}
 
-      {/* Modal para crear post */}
+ 
       <Modal animationType="fade" transparent visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalBackground}>
           <CreatePostModal onClose={() => setModalVisible(false)} onPostCreated={fetchPosts} />
         </View>
       </Modal>
 
-      {/* Botón flotante */}
+
       <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
         <Ionicons name="add" size={28} color={COLORS.white} />
       </TouchableOpacity>

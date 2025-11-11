@@ -17,7 +17,7 @@ import { getAuth } from 'firebase/auth';
 import COLORS from '../constants/Colors';
 
 const { width } = Dimensions.get('window');
-const API_URL = 'http://localhost:8080/api/post';
+const API_URL = 'http://192.168.0.9:8080/api/post';
 const MOCK_GAMES = ['Valorant', 'League of Legends', 'Dota 2', 'Apex Legends', 'Counter-Strike 2'];
 const MAX_IMAGES = 5;
 const MAX_FILE_SIZE_MB = 10;
@@ -129,7 +129,7 @@ const CreatePostModal = ({ onClose, onPostCreated }) => {
       const data = await response.json();
 
       if (response.ok) {
-        Alert.alert('Publicado 🎉', 'El post se creó exitosamente.');
+        Alert.alert('Publicado ', 'El post se creó exitosamente.');
         if (onPostCreated) onPostCreated();
         onClose();
       } else {
@@ -147,7 +147,7 @@ const CreatePostModal = ({ onClose, onPostCreated }) => {
 
   return (
     <View style={styles.modalContainer}>
-      {/* Hidden input solo visible en web */}
+    
       {Platform.OS === 'web' && (
         <input
           type="file"

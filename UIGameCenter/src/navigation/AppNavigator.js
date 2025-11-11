@@ -1,4 +1,3 @@
-// src/navigation/AppNavigator.js
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -9,9 +8,14 @@ import LoginScreen from '../screens/UserScreen/LoginScreen/LoginScreen';
 import RegisterScreen from '../screens/UserScreen/RegisterScreen/RegisterScreen';
 import UserProfileScreen from '../screens/UserScreen/ProfileScreen/UserProfileScreen';
 import ProtectedRoute from '../screens/UserScreen/Auth/ProtectedRoute';
-import CommunityScreen from '../screens/CommunityScreen'; 
-import PostDetailScreen from '../screens/PostDetailScreen'; 
-import GameDetailsScreen from '../components/GameDetailsScreen';
+
+import CommunityScreen from '../screens/CommunityScreen';
+import PostDetailScreen from '../screens/PostDetailScreen';
+import GroupDiscoveryScreen from '../screens/GroupDiscoveryScreen';
+import GroupDetailView from '../screens/GroupDetailView';
+import CreateGroupScreen from '../screens/CreateGroupScreen';
+import CreateEventScreen from '../screens/CreateEventScreen';  
+import EditGroupScreen from '../screens/EditGroupScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -22,10 +26,18 @@ const AppNavigator = () => {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Register" component={RegisterScreen} />
-        <Stack.Screen name="Community" component={CommunityScreen} />
-        <Stack.Screen name="PostDetail"component={PostDetailScreen}/>
-        <Stack.Screen name="GameDetails" component={GameDetailsScreen} />
 
+        <Stack.Screen name="Community" component={CommunityScreen} />
+        <Stack.Screen name="PostDetail" component={PostDetailScreen} />
+        <Stack.Screen name="GroupDiscovery" component={GroupDiscoveryScreen} />
+
+       
+        <Stack.Screen name="GroupDetail" component={GroupDetailView} />
+        <Stack.Screen name="CreateGroup" component={CreateGroupScreen} />
+       <Stack.Screen name="EditGroupScreen" component={EditGroupScreen} />
+        <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
+
+    
         <Stack.Screen name="Profile">
           {props => (
             <ProtectedRoute>
