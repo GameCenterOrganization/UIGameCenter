@@ -6,14 +6,15 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native'; 
-
+import axios from 'axios'; 
 import COLORS from '../constants/Colors';
 import GroupPostItem from '../components/GroupPostItem'; 
 import MemberListingRow from '../components/MemberListingRow'; 
 import { getAuth } from 'firebase/auth'; 
 
-const BASE_URL = "http://192.168.0.9:8080"; 
+const BASE_URL = "http://192.168.0.6:8080"; 
 const API_URL = `${BASE_URL}/api/group`;
+const MEMBER_API_URL = `${BASE_URL}/api/group`; 
 
 const getFirebaseToken = async () => {
     try {
@@ -32,9 +33,9 @@ const mapApiToGroupDetail = (group) => {
     const isStreamer = !!group.streamerInfo;
     const isLive = isStreamer && group.streamerInfo?.IS_LIVE_BOOL; 
     
-    const membersTotal = group.GROUP_MEMBER_COUNT ? group.GROUP_MEMBER_COUNT.toLocaleString('es-ES') : '0';
+    const membersTotal = group.MEMBER_COUNT ? group.MEMBER_COUNT.toLocaleString('es-ES') : '0';
 
-    return {
+     return {
         id: group.ID_GROUP, 
         name: group.GROUP_NAME_DSC,
         subtitle: group.SUBTITLE_DSC || 'Sin descripción.', 
@@ -57,20 +58,11 @@ const mapApiToGroupDetail = (group) => {
     };
 };
 
-
-const MEMBERS_DATA = [
-    { id: 'm1', username: 'GamerPro123', role: 'Admin', avatarUri: 'https://picsum.photos/40/40?random=a', isOnline: true },
-    { id: 'm2', username: 'ProPlayer99', role: 'Moderador', avatarUri: 'https://picsum.photos/40/40?random=b', isOnline: true },
-    { id: 'm3', username: 'ElStreamerPro', role: 'Miembro', avatarUri: 'https://picsum.photos/40/40?random=c', isOnline: true },
-    { id: 'm4', username: 'NoobMaster', role: 'Miembro', avatarUri: 'https://picsum.photos/40/40?random=d', isOnline: false },
-];
-
 const POSTS_DATA = [
     
     { id: 'p1', username: 'GamerPro123', time: 'Hace 2 horas', content: '¿Alguien para ranked? Necesitamos 2 más para el equipo. Nivel Platino o superior.', likes: 24, comments: 8, shares: 2, userAvatarUri: 'https://picsum.photos/50/50?random=p1' },
     { id: 'p2', username: 'ProPlayer99', time: 'Ayer', content: 'Gran torneo el fin de semana. ¡Felicidades a los ganadores!', likes: 105, comments: 3, shares: 1, userAvatarUri: 'https://picsum.photos/50/50?random=p2' },
 ];
-
 
 const AvisarDirectoModal = ({ isVisible, onClose }) => {
     const [streamTitle, setStreamTitle] = useState('');
@@ -180,7 +172,6 @@ const AvisarDirectoModal = ({ isVisible, onClose }) => {
         },
     });
 
-
     return (
         <Modal
             animationType="slide"
@@ -242,15 +233,17 @@ const AvisarDirectoModal = ({ isVisible, onClose }) => {
     );
 };
 
-
-
 const GroupDetailView = ({ navigation, route }) => {
     const [activeTab, setActiveTab] = useState('Publicaciones');
     const [isAvisarModalVisible, setIsAvisarModalVisible] = useState(false);
     const [groupData, setGroupData] = useState(null); 
     const [loading, setLoading] = useState(true); 
     
+    const [userRole, setUserRole] = useState(null); 
+    const [membersList, setMembersList] = useState([]); 
+
     const groupId = route.params?.groupData?.id; 
+    const firebaseUid = getAuth().currentUser?.uid; 
 
     const handleStreamPress = () => {
         if (groupData?.streamLink) {
@@ -264,48 +257,117 @@ const GroupDetailView = ({ navigation, route }) => {
         navigation.navigate('EditGroupScreen', { groupId: groupData.id, initialData: groupData });
     };
     
-    const fetchGroupDetail = useCallback(async () => {
-        if (!groupId) {
+    const fetchGroupDetailAndRole = useCallback(async () => {
+        if (!groupId || !firebaseUid) {
             setLoading(false);
-            Alert.alert("Error", "ID del grupo no proporcionado. Asegúrate de pasar 'groupData.id' en la navegación.");
+            if (!groupId) Alert.alert("Error", "ID del grupo no proporcionado.");
             return;
         }
 
         setLoading(true);
+        const token = await getFirebaseToken(); 
+
         try {
-            const response = await fetch(`${API_URL}/${groupId}`, {
+
+            const groupResponse = await fetch(`${API_URL}/${groupId}`, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+            });
+
+            if (!groupResponse.ok) {
+                const errorData = await groupResponse.json();
+                throw new Error(errorData.message || 'Error al cargar el detalle del grupo');
+            }
+
+            const data = await groupResponse.json();
+            const mappedDetail = mapApiToGroupDetail(data.group); 
+            setGroupData(mappedDetail);
+            
+            const roleResponse = await fetch(`${MEMBER_API_URL}/${groupId}/role`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`, 
+                },
+            });
+            
+            if (roleResponse.ok) {
+                const roleData = await roleResponse.json();
+                setUserRole(roleData.role); 
+            } else {
+                 console.warn("Could not fetch user role. Defaulting to null.");
+                 setUserRole(null);
+            }
+
+        } catch (error) {
+            console.error('Error fetching group detail or role:', error);
+            Alert.alert('Error de API', error.message || 'Hubo un error al cargar el detalle de la comunidad.');
+            setGroupData(null);
+            setUserRole(null);
+        } finally {
+            setLoading(false);
+        }
+    }, [groupId, firebaseUid]);
+
+    const fetchMembersList = useCallback(async () => {
+        if (!groupId || !firebaseUid) return;
+        
+        const token = await getFirebaseToken();
+        if (!token) {
+             console.warn("Token not available, cannot fetch members list.");
+             setMembersList([]); 
+             return;
+        }
+        
+        try {
+            const response = await fetch(`${MEMBER_API_URL}/${groupId}/members`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`, 
                 },
             });
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.message || 'Error al cargar el detalle del grupo');
+                throw new Error(errorData.message || 'Error al cargar la lista de miembros');
             }
-
+            
             const data = await response.json();
             
-            const mappedDetail = mapApiToGroupDetail(data.group); 
+            const mappedMembers = data.map(m => ({
+                id: m.user.ID_USER, 
+                username: m.user.USERNAME_DSC,
+                role: m.MEMBER_ROLE_DSC,
+                avatarUri: m.user.PROFILE_PIC 
+                    ? m.user.PROFILE_PIC.startsWith(BASE_URL) 
+                        ? m.user.PROFILE_PIC 
+                        : `${BASE_URL}${m.user.PROFILE_PIC.replace('src/public', '')}` 
+                    : `https://picsum.photos/40/40?random=${m.user.ID_USER}`, 
+                isOnline: false, 
+            }));
+            
+            setMembersList(mappedMembers);
 
-            setGroupData(mappedDetail);
         } catch (error) {
-            console.error('Error fetching group detail:', error);
-            Alert.alert('Error de API', error.message || 'Hubo un error al cargar el detalle de la comunidad.');
-            setGroupData(null);
-        } finally {
-            setLoading(false);
+             console.error('Error fetching members list:', error);
+             setMembersList([]); 
         }
-    }, [groupId]);
+    }, [groupId, firebaseUid]);
 
     useFocusEffect(
         useCallback(() => {
-            fetchGroupDetail();
+            fetchGroupDetailAndRole();
             return () => {}; 
-        }, [fetchGroupDetail])
+        }, [fetchGroupDetailAndRole])
     );
     
+    useEffect(() => {
+        if (activeTab === 'Miembros') {
+            fetchMembersList();
+        }
+    }, [activeTab, fetchMembersList]);
+
     const renderContent = () => {
         if (!groupData) return null; 
         
@@ -332,9 +394,8 @@ const GroupDetailView = ({ navigation, route }) => {
                         </View>
                     </View>
 
-                    
                     {POSTS_DATA.map(post => (
-                        <GroupPostItem key={post.id} post={post} onPress={() => {/* Navegar a detalle del post */}} />
+                        <GroupPostItem key={post.id} post={post} onPress={() => {}} />
                     ))}
                 </View>
             );
@@ -345,9 +406,13 @@ const GroupDetailView = ({ navigation, route }) => {
                 <View style={styles.membersListContainer}>
                     <Text style={styles.membersCountText}>Miembros del grupo</Text>
                     <Text style={styles.membersCountSubText}>{groupData.membersTotal} miembros • {groupData.membersOnline} en línea</Text>
-                    {MEMBERS_DATA.map(member => (
-                        <MemberListingRow key={member.id} member={member} onPressProfile={() => {/* Navegar a perfil */}} />
-                    ))}
+                    {membersList.length > 0 ? (
+                        membersList.map(member => (
+                            <MemberListingRow key={member.id} member={member} onPressProfile={() => {}} />
+                        ))
+                    ) : (
+                        <Text style={styles.placeholderText}>Cargando lista de miembros...</Text>
+                    )}
                 </View>
             );
         }
@@ -367,7 +432,6 @@ const GroupDetailView = ({ navigation, route }) => {
         }
         return null;
     };
-
 
 
     if (loading) {
@@ -440,9 +504,7 @@ const GroupDetailView = ({ navigation, route }) => {
                                     </Text>
                                 </View>
 
-                            
                                 <View style={styles.actionButtonsRow}>
-                                        
                                         
                                     {groupData.isLive && groupData.isStreamer && (
                                         <View style={styles.liveBadge}>
@@ -452,11 +514,10 @@ const GroupDetailView = ({ navigation, route }) => {
                                         </View>
                                     )}
 
-                                
                                     {groupData.isStreamer && groupData.streamLink && (
                                         <TouchableOpacity 
                                             style={styles.streamActionButton} 
-                                            onPress={handleStreamPress} // Usa la función Linking
+                                            onPress={handleStreamPress} 
                                         >
                                             <Ionicons name="logo-twitch" size={20} color={COLORS.white} />
                                             <Text style={styles.actionText}>Ver Stream</Text>
@@ -472,15 +533,17 @@ const GroupDetailView = ({ navigation, route }) => {
                                         <Text style={styles.actionText}>Compartir</Text>
                                     </TouchableOpacity>
 
-                                    <TouchableOpacity 
-                                        style={styles.actionIcon}
-                                        onPress={handleSettingsPress} 
-                                    >
-                                        <Ionicons name="settings-outline" size={20} color={COLORS.white} />
-                                        <Text style={styles.actionText}>Configuración</Text>
-                                    </TouchableOpacity>
+                                    {userRole === 'ADMIN' && (
+                                        <TouchableOpacity 
+                                            style={styles.actionIcon}
+                                            onPress={handleSettingsPress} 
+                                        >
+                                            <Ionicons name="settings-outline" size={20} color={COLORS.white} />
+                                            <Text style={styles.actionText}>Configuración</Text>
+                                        </TouchableOpacity>
+                                    )}
                                     
-                                    {groupData.isStreamer && (
+                                    {userRole === 'ADMIN' && groupData.isStreamer && (
                                         <TouchableOpacity 
                                             style={styles.actionIcon}
                                             onPress={() => setIsAvisarModalVisible(true)}

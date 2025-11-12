@@ -22,7 +22,7 @@ import GroupDiscoveryScreen from './GroupDiscoveryScreen';
 
 const { width } = Dimensions.get('window');
 const FILTER_OPTIONS = ['Todos', 'Más Recientes', 'Más Populares', 'Más Comentados', 'Sólo Tendencias'];
-const API_URL = "http://192.168.0.9:8080/api/post";
+const API_URL = "http://192.168.0.6:8080/api/post";
 
 const CommunityScreen = React.memo(({ navigation }) => {
   const [filterVisible, setFilterVisible] = useState(false);

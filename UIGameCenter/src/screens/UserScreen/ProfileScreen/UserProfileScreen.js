@@ -20,7 +20,7 @@ import { auth } from "../firebaseConfig";
 import { styles } from "./ProfileStyle";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
-const BACKEND_BASE = "http://192.168.0.9:8080";
+const BACKEND_BASE = "http://192.168.0.6:8080";
 const PROFILE_GET = `${BACKEND_BASE}/api/users/profile`;
 const PROFILE_UPDATE = `${BACKEND_BASE}/api/users/profile/update`;
 const PROFILE_UPLOAD_PIC = `${BACKEND_BASE}/api/users/profile/upload-photo`;
@@ -229,7 +229,6 @@ export default function UserProfileScreen({ navigation }) {
 
   return (
     <LinearGradient colors={["#0b0d12", "#0f1116"]} style={styles.flex}>
-      {/* 🔙 Flecha de volver */}
       <TouchableOpacity
         onPress={() => navigation.goBack()}
         style={{ position: "absolute", top: 40, left: 20, zIndex: 10 }}
@@ -245,7 +244,6 @@ export default function UserProfileScreen({ navigation }) {
           <Text style={styles.title}>Mi Cuenta</Text>
           <Text style={styles.subtitle}>Gestiona tu perfil y configuración</Text>
 
-          {/* 📸 Foto de Perfil */}
           <View style={[styles.card, isNarrow ? styles.cardNarrow : styles.cardWide]}>
             <Text style={styles.cardHeader}>Foto de Perfil</Text>
             <View style={styles.row}>
@@ -284,7 +282,6 @@ export default function UserProfileScreen({ navigation }) {
             </View>
           </View>
 
-          {/* 🧍 Información Personal */}
           <View style={[styles.card, isNarrow ? styles.cardNarrow : styles.cardWide]}>
             <Text style={styles.cardHeader}>Información Personal</Text>
 
@@ -407,7 +404,6 @@ export default function UserProfileScreen({ navigation }) {
             </View>
           </View>
 
-          {/* 💾 Botón Guardar */}
           <View
             style={{
               alignItems: "flex-end",
