@@ -1,5 +1,3 @@
-// src/views/GroupDetailView.js (Código Completo Actualizado)
-
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     View, Text, StyleSheet, ScrollView,
@@ -70,41 +68,17 @@ const mapApiToGroupDetail = (group) => {
     };
 };
 
-const POSTS_DATA = [
-    { id: 'p1', username: 'GamerPro123', time: 'Hace 2 horas', content: '¿Alguien para ranked? Necesitamos 2 más para el equipo. Nivel Platino o superior.', likes: 24, comments: 8, shares: 2, userAvatarUri: 'https://picsum.photos/50/50?random=p1' },
-    { id: 'p2', username: 'ProPlayer99', time: 'Ayer', content: 'Gran torneo el fin de semana. ¡Felicidades a los ganadores!', likes: 105, comments: 3, shares: 1, userAvatarUri: 'https://picsum.photos/50/50?random=p2' },
-];
-
 const AvisarDirectoModal = ({ isVisible, onClose }) => {
-    return (
-        <Modal visible={isVisible} animationType="slide" transparent={true} onRequestClose={onClose}>
-            <View style={[styles.centeredView, { backgroundColor: 'rgba(0,0,0,0.8)' }]}>
-                <View style={styles.modalView}>
-                    <Text style={styles.modalTitle}>Avisar Directo</Text>
-                    <Text style={{ color: COLORS.white }}>Contenido del Modal de Aviso de Directo...</Text>
-                    <TouchableOpacity onPress={onClose} style={[styles.modalButton, { backgroundColor: COLORS.purple, marginTop: 20 }]}>
-                        <Text style={styles.modalButtonText}>Cerrar</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-        </Modal>
-    )
-};
+    const [streamTitle, setStreamTitle] = useState('');
+    const [isLiveNow, setIsLiveNow] = useState(false);
 
-const AdminActionModal = ({
-    isVisible,
-    onClose,
-    targetMember,
-    onRemove,
-    onRoleChange
-}) => {
-    const [isRoleModalVisible, setIsRoleModalVisible] = useState(false);
-
-    if (!targetMember) return null;
-
-    const handleRoleSelect = (newRole) => {
-        setIsRoleModalVisible(false);
-        onRoleChange(newRole);
+    const handleAvisar = () => {
+        if (isLiveNow) {
+            console.log('Avisando directo INMEDIATO con título:', streamTitle);
+        } else {
+            console.log('Programando directo con título:', streamTitle);
+        }
+        onClose();
     };
 
     const modalStyles = StyleSheet.create({
@@ -214,6 +188,7 @@ const AdminActionModal = ({
                     <Text style={modalStyles.modalTitle}>
                         {isLiveNow ? 'Avisar Directo AHORA' : 'Programar Directo/Evento'}
                     </Text>
+
                     <View style={modalStyles.toggleRow}>
                         <Text style={modalStyles.toggleText}>¿Estás en directo ahora?</Text>
                         <Switch
@@ -223,6 +198,7 @@ const AdminActionModal = ({
                             value={isLiveNow}
                         />
                     </View>
+
                     <TextInput
                         style={modalStyles.input}
                         placeholder="Título del Stream/Evento (Ej: Ranked con subs)"
@@ -230,12 +206,14 @@ const AdminActionModal = ({
                         value={streamTitle}
                         onChangeText={setStreamTitle}
                     />
+
                     {!isLiveNow && (
                         <TouchableOpacity style={modalStyles.dateButton}>
                             <Ionicons name="calendar-outline" size={20} color={COLORS.purple} />
                             <Text style={modalStyles.dateButtonText}>Seleccionar Fecha y Hora</Text>
                         </TouchableOpacity>
                     )}
+
                     <View style={modalStyles.buttonRow}>
                         <TouchableOpacity
                             style={[modalStyles.button, modalStyles.cancelButton]}
@@ -254,30 +232,86 @@ const AdminActionModal = ({
                         </TouchableOpacity>
                     </View>
                 </View>
-
-                <Modal animationType="slide" transparent={true} visible={isRoleModalVisible} onRequestClose={() => setIsRoleModalVisible(false)}>
-                    <View style={styles.centeredView}>
-                        <View style={styles.modalView}>
-                            <Text style={styles.modalTitle}>Seleccionar Nuevo Rol</Text>
-                            {rolesMenu.map(role => (
-                                <TouchableOpacity
-                                    key={role}
-                                    style={[styles.modalButton, { backgroundColor: COLORS.purple, marginVertical: 5 }]}
-                                    onPress={() => handleRoleSelect(role)}
-                                >
-                                    <Text style={styles.modalButtonText}>{role}</Text>
-                                </TouchableOpacity>
-                            ))}
-                            <TouchableOpacity
-                                style={[styles.modalButton, { backgroundColor: COLORS.inputBackground, marginTop: 15 }]}
-                                onPress={() => setIsRoleModalVisible(false)}
-                            >
-                                <Text style={[styles.modalButtonText, { color: COLORS.white }]}>Cancelar</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </Modal>
             </View>
+        </Modal>
+    );
+};
+
+const AdminActionModal = ({
+    isVisible,
+    onClose,
+    targetMember,
+    onRemove,
+    onRoleChange
+}) => {
+    const [isRoleModalVisible, setIsRoleModalVisible] = useState(false);
+    const rolesMenu = ["ADMIN", "MODERATOR", "MEMBER"];
+
+    if (!targetMember) return null;
+
+    const handleRoleSelect = (newRole) => {
+        setIsRoleModalVisible(false);
+        onRoleChange(newRole);
+    };
+
+    return (
+        <Modal
+            animationType="slide"
+            transparent={true}
+            visible={isVisible}
+            onRequestClose={onClose}
+        >
+            <View style={styles.centeredView}>
+                <View style={styles.modalView}>
+                    <Text style={styles.modalTitle}>
+                        Acciones para {targetMember.username}
+                    </Text>
+
+                    <TouchableOpacity
+                        style={[styles.modalButton, { backgroundColor: COLORS.purple, marginVertical: 5 }]}
+                        onPress={() => setIsRoleModalVisible(true)}
+                    >
+                        <Text style={styles.modalButtonText}>Cambiar Rol</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.modalButton, { backgroundColor: COLORS.red, marginVertical: 5 }]}
+                        onPress={onRemove}
+                    >
+                        <Text style={styles.modalButtonText}>Eliminar del Grupo</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.modalButton, { backgroundColor: COLORS.inputBackground, marginTop: 15 }]}
+                        onPress={onClose}
+                    >
+                        <Text style={[styles.modalButtonText, { color: COLORS.white }]}>Cancelar</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+
+            <Modal animationType="slide" transparent={true} visible={isRoleModalVisible} onRequestClose={() => setIsRoleModalVisible(false)}>
+                <View style={styles.centeredView}>
+                    <View style={styles.modalView}>
+                        <Text style={styles.modalTitle}>Seleccionar Nuevo Rol</Text>
+                        {rolesMenu.map(role => (
+                            <TouchableOpacity
+                                key={role}
+                                style={[styles.modalButton, { backgroundColor: COLORS.purple, marginVertical: 5 }]}
+                                onPress={() => handleRoleSelect(role)}
+                            >
+                                <Text style={styles.modalButtonText}>{role}</Text>
+                            </TouchableOpacity>
+                        ))}
+                        <TouchableOpacity
+                            style={[styles.modalButton, { backgroundColor: COLORS.inputBackground, marginTop: 15 }]}
+                            onPress={() => setIsRoleModalVisible(false)}
+                        >
+                            <Text style={[styles.modalButtonText, { color: COLORS.white }]}>Cancelar</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </Modal>
     );
 };
@@ -292,7 +326,7 @@ const showAlert = (title, message, buttons = []) => {
             if (buttons[0]?.onPress) buttons[0].onPress();
         }
     } else {
-        showAlert(title, message, buttons);
+        Alert.alert(title, message, buttons);
     }
 };
 
@@ -314,6 +348,118 @@ const GroupDetailView = ({ navigation, route }) => {
     const groupId = route.params?.groupData?.id;
     const firebaseUid = getAuth().currentUser?.uid;
 
+    // FUNCIONES FALTANTES - ESTAS SON LAS QUE CAUSABAN EL ERROR
+    const fetchGroupDetail = useCallback(async () => {
+        if (!groupId) {
+            setLoading(false);
+            showAlert("Error", "ID del grupo no proporcionado.");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const response = await fetch(`${API_URL}/${groupId}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Error al cargar el detalle del grupo');
+            }
+
+            const data = await response.json();
+            const mappedDetail = mapApiToGroupDetail(data.group);
+            setGroupData(mappedDetail);
+        } catch (error) {
+            console.error('Error fetching group detail:', error);
+            showAlert('Error de API', error.message || 'Hubo un error al cargar el detalle de la comunidad.');
+            setGroupData(null);
+        } finally {
+            setLoading(false);
+        }
+    }, [groupId]);
+
+    const fetchGroupPosts = useCallback(async () => {
+        if (!groupId) return;
+        
+        try {
+            console.log("=== OBTENIENDO POSTS ===");
+            console.log("URL:", `${API_URL}/${groupId}/posts`);
+            
+            const res = await fetch(`${API_URL}/${groupId}/posts`);
+            const data = await res.json();
+            
+            console.log("Respuesta completa:", JSON.stringify(data, null, 2));
+            console.log("Status:", res.status);
+            
+            if (!res.ok) {
+                console.error("Error fetching posts:", data);
+                return;
+            }
+            
+            if (Array.isArray(data.posts)) {
+                console.log("Número de posts recibidos:", data.posts.length);
+                setPosts(data.posts);
+            }
+        } catch (err) {
+            console.error("Error cargando publicaciones:", err);
+        }
+    }, [groupId]);
+
+    const fetchGroupDetailAndRole = useCallback(async () => {
+        if (!groupId || !firebaseUid) {
+            setLoading(false);
+            if (!groupId) showAlert("Error", "ID del grupo no proporcionado.");
+            return;
+        }
+        setLoading(true);
+        const token = await getFirebaseToken();
+
+        try {
+            const groupResponse = await fetch(`${API_URL}/${groupId}`, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+            });
+
+            if (!groupResponse.ok) {
+                const errorData = await groupResponse.json();
+                throw new Error(errorData.message || 'Error al cargar el detalle del grupo');
+            }
+
+            const data = await groupResponse.json();
+            const mappedDetail = mapApiToGroupDetail(data.group);
+            setGroupData(mappedDetail);
+
+            if (token) {
+                const roleResponse = await fetch(`${MEMBER_API_URL}/${groupId}/role`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                });
+
+                if (roleResponse.ok) {
+                    const roleData = await roleResponse.json();
+                    setUserRole(roleData.role);
+                } else {
+                    console.warn("No se pudo obtener el rol del usuario.");
+                    setUserRole(null);
+                }
+            }
+
+        } catch (error) {
+            console.error('Error fetching group detail or role:', error);
+            showAlert('Error de API', error.message || 'Hubo un error al cargar el detalle de la comunidad.');
+            setGroupData(null);
+            setUserRole(null);
+        } finally {
+            setLoading(false);
+        }
+    }, [groupId, firebaseUid]);
 
     const handleStreamPress = () => {
         if (groupData?.streamLink) {
@@ -468,56 +614,6 @@ const GroupDetailView = ({ navigation, route }) => {
         }
     };
 
-    const fetchGroupDetailAndRole = useCallback(async () => {
-        if (!groupId || !firebaseUid) {
-            setLoading(false);
-            if (!groupId) showAlert("Error", "ID del grupo no proporcionado.");
-            return;
-        }
-        setLoading(true);
-        const token = await getFirebaseToken();
-
-        try {
-            const groupResponse = await fetch(`${API_URL}/${groupId}`, {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-            });
-
-            if (!groupResponse.ok) {
-                const errorData = await groupResponse.json();
-                throw new Error(errorData.message || 'Error al cargar el detalle del grupo');
-            }
-
-            const data = await groupResponse.json();
-            const mappedDetail = mapApiToGroupDetail(data.group);
-            setGroupData(mappedDetail);
-
-            const roleResponse = await fetch(`${MEMBER_API_URL}/${groupId}/role`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
-            });
-
-            if (roleResponse.ok) {
-                const roleData = await roleResponse.json();
-                setUserRole(roleData.role);
-            } else {
-                console.warn("No se pudo obtener el rol del usuario. Asumiendo no-miembro o error.");
-                setUserRole(null);
-            }
-
-        } catch (error) {
-            console.error('Error fetching group detail or role:', error);
-            showAlert('Error de API', error.message || 'Hubo un error al cargar el detalle de la comunidad.');
-            setGroupData(null);
-            setUserRole(null);
-        } finally {
-            setLoading(false);
-        }
-    }, [groupId, firebaseUid]);
-
     const fetchMembersList = useCallback(async () => {
         if (!groupId || !firebaseUid) return;
 
@@ -564,27 +660,12 @@ const GroupDetailView = ({ navigation, route }) => {
         }
     }, [groupId, firebaseUid]);
 
-    const fetchGroupPosts = async () => {
-        try {
-            const res = await fetch(`${API_URL}/${groupId}/posts`);
-            const data = await res.json();
-            if (!res.ok) {
-                console.error("Error fetching posts:", data);
-                return;
-            }
-
-        } catch (err) {
-            console.error("Error cargando publicaciones:", err);
-        }
-    };
-
     useFocusEffect(
         useCallback(() => {
-            fetchGroupDetail();
-            fetchGroupPosts();
             fetchGroupDetailAndRole();
+            fetchGroupPosts();
             return () => { };
-        }, [fetchGroupDetail, fetchGroupPosts, fetchGroupDetailAndRole, groupId])
+        }, [fetchGroupDetailAndRole, fetchGroupPosts])
     );
 
     const constructImageUri = (imageObj) => {
@@ -678,7 +759,6 @@ const GroupDetailView = ({ navigation, route }) => {
                                         const blob = await response.blob();
                                         const filename = `photo_${Date.now()}.jpg`;
                                         formData.append("image", blob, filename);
-
                                     }
 
                                     const res = await fetch(`${API_URL}/${groupId}/posts`, {
@@ -695,11 +775,13 @@ const GroupDetailView = ({ navigation, route }) => {
                                         throw new Error(data.message || "Error creando publicación");
                                     }
                                     if (data.post) {
-
                                         setPosts(prev => [data.post, ...prev]);
                                         setNewPostText("");
                                         setImageUri(null);
-
+                                        // Refrescar posts después de crear uno nuevo
+                                        setTimeout(() => {
+                                            fetchGroupPosts();
+                                        }, 2000);
                                     }
                                 } catch (err) {
                                     console.error("Error creating post:", err);
@@ -733,14 +815,10 @@ const GroupDetailView = ({ navigation, route }) => {
                     )}
                     {posts.length > 0 ? (
                         posts.map(post => {
-
                             let imageUri = null;
                             if (post.images && Array.isArray(post.images) && post.images.length > 0) {
-
                                 imageUri = constructImageUri(post.images[0]);
-
                             } else if (post.images && typeof post.images === 'object' && !Array.isArray(post.images)) {
-
                                 imageUri = constructImageUri(post.images);
                             }
 
@@ -1041,6 +1119,5 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
 });
-
 
 export default GroupDetailView;
