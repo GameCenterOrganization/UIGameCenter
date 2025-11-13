@@ -5,7 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { getAuth } from 'firebase/auth'; 
 import COLORS from '../constants/Colors'; 
 
-const API_BASE_URL = 'http://192.168.0.9:8080'; 
+const API_BASE_URL = 'http://localhost:8080'; 
 
 const TYPE_JUEGO = 'GAME'; 
 const TYPE_STREAMER = 'STREAMER';

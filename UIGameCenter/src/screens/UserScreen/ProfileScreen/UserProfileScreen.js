@@ -20,7 +20,7 @@ import { auth } from "../firebaseConfig";
 import { styles } from "./ProfileStyle";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
-const BACKEND_BASE = "http://192.168.0.9:8080";
+const BACKEND_BASE = "http://localhost:8080";
 const PROFILE_GET = `${BACKEND_BASE}/api/users/profile`;
 const PROFILE_UPDATE = `${BACKEND_BASE}/api/users/profile/update`;
 const PROFILE_UPLOAD_PIC = `${BACKEND_BASE}/api/users/profile/upload-photo`;

@@ -10,22 +10,31 @@ import { useFocusEffect } from '@react-navigation/native';
 import COLORS from '../constants/Colors';
 import GroupPostItem from '../components/GroupPostItem'; 
 import MemberListingRow from '../components/MemberListingRow'; 
-import { getAuth } from 'firebase/auth'; 
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import * as ImagePicker from 'expo-image-picker';
 
-const BASE_URL = "http://192.168.0.9:8080"; 
+const BASE_URL = "http://localhost:8080"; 
 const API_URL = `${BASE_URL}/api/group`;
 
+// Obtener token de Firebase asegurando que el usuario esté cargado
 const getFirebaseToken = async () => {
-    try {
-        const user = getAuth().currentUser;
+  const auth = getAuth();
+  return new Promise((resolve) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      unsubscribe();
+      try {
         if (user) {
-            return await user.getIdToken();
+          const token = await user.getIdToken();
+          resolve(token);
+        } else {
+          resolve(null);
         }
-        return null;
-    } catch (error) {
-        console.error("Error fetching Firebase token:", error);
-        return null;
-    }
+      } catch (err) {
+        console.error("Error obteniendo token firebase:", err);
+        resolve(null);
+      }
+    });
+  });
 };
 
 const mapApiToGroupDetail = (group) => {
@@ -66,7 +75,6 @@ const MEMBERS_DATA = [
 ];
 
 const POSTS_DATA = [
-    
     { id: 'p1', username: 'GamerPro123', time: 'Hace 2 horas', content: '¿Alguien para ranked? Necesitamos 2 más para el equipo. Nivel Platino o superior.', likes: 24, comments: 8, shares: 2, userAvatarUri: 'https://picsum.photos/50/50?random=p1' },
     { id: 'p2', username: 'ProPlayer99', time: 'Ayer', content: 'Gran torneo el fin de semana. ¡Felicidades a los ganadores!', likes: 105, comments: 3, shares: 1, userAvatarUri: 'https://picsum.photos/50/50?random=p2' },
 ];
@@ -250,6 +258,11 @@ const GroupDetailView = ({ navigation, route }) => {
     const [groupData, setGroupData] = useState(null); 
     const [loading, setLoading] = useState(true); 
     
+    // estados para posts (integración backend)
+    const [posts, setPosts] = useState([]);
+    const [newPostText, setNewPostText] = useState("");
+    const [imageUri, setImageUri] = useState(null);
+
     const groupId = route.params?.groupData?.id; 
 
     const handleStreamPress = () => {
@@ -299,9 +312,27 @@ const GroupDetailView = ({ navigation, route }) => {
         }
     }, [groupId]);
 
+    // obtener posts reales desde backend
+    const fetchGroupPosts = async () => {
+      try {
+        const res = await fetch(`${API_URL}/${groupId}/posts`);
+        const data = await res.json();
+        if (!res.ok) {
+          console.error("Error fetching posts:", data);
+          return;
+        }
+        if (Array.isArray(data.posts)) {
+          setPosts(data.posts);
+        }
+      } catch (err) {
+        console.error("Error cargando publicaciones:", err);
+      }
+    };
+
     useFocusEffect(
         useCallback(() => {
             fetchGroupDetail();
+            fetchGroupPosts();
             return () => {}; 
         }, [fetchGroupDetail])
     );
@@ -320,22 +351,90 @@ const GroupDetailView = ({ navigation, route }) => {
                             placeholderTextColor={COLORS.grayText}
                             style={styles.postInput}
                             multiline
+                            value={newPostText}
+                            onChangeText={setNewPostText}
                         />
                         <View style={styles.postActions}>
-                            <TouchableOpacity style={styles.imageButton}>
+                            <TouchableOpacity style={styles.imageButton} onPress={async () => {
+                              const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                              if (!permission.granted) {
+                                Alert.alert("Permiso denegado", "Debes permitir acceso a la galería para subir imágenes.");
+                                return;
+                              }
+                              const result = await ImagePicker.launchImageLibraryAsync({
+                                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                                allowsEditing: true,
+                                quality: 0.8,
+                              });
+                              if (!result.canceled) setImageUri(result.assets[0].uri);
+                            }}>
                                 <Ionicons name="image-outline" size={24} color={COLORS.grayText} />
                                 <Text style={styles.imageButtonText}>Imagen</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.postButton}>
+                            <TouchableOpacity style={styles.postButton} onPress={async () => {
+                              if (!newPostText.trim()) return Alert.alert("Escribe algo para publicar");
+                              try {
+                                const token = await getFirebaseToken();
+                                if (!token) return Alert.alert("No autenticado", "Inicia sesión para publicar.");
+
+                                const formData = new FormData();
+                                formData.append("POST_CONTENT_DSC", newPostText);
+
+                                if (imageUri) {
+                                  const filename = imageUri.split("/").pop();
+                                  const match = /\.(\w+)$/.exec(filename);
+                                  const type = match ? `image/${match[1]}` : "image";
+                                  formData.append("image", { uri: imageUri, name: filename, type });
+                                }
+
+                                const res = await fetch(`${API_URL}/${groupId}/posts`, {
+                                  method: 'POST',
+                                  headers: {
+                                    "Authorization": `Bearer ${token}`,
+                                    "Accept": "application/json"
+                                  },
+                                  body: formData,
+                                });
+
+                                const data = await res.json();
+                                if (!res.ok) {
+                                  throw new Error(data.message || "Error creando publicación");
+                                }
+
+                                if (data.post) setPosts(prev => [data.post, ...prev]);
+                                setNewPostText("");
+                                setImageUri(null);
+                              } catch (err) {
+                                console.error("Error creating post:", err);
+                                Alert.alert("Error al publicar", err.message || "Revisa la consola");
+                              }
+                            }}>
                                 <Text style={styles.postButtonText}>Publicar</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
 
-                    
-                    {POSTS_DATA.map(post => (
+                    {imageUri && (
+                      <Image source={{ uri: imageUri }} style={{ width: '100%', height: 200, borderRadius: 10, marginBottom: 10 }} />
+                    )}
+
+                    {posts.length > 0 ? (
+                      posts.map(post => (
+                        <GroupPostItem key={post.ID_GROUP_POST || post.id} post={{
+                          id: post.ID_GROUP_POST || post.id,
+                          username: post.user?.USERNAME_DSC || post.username || "Miembro",
+                          time: post.POST_DATE ? new Date(post.POST_DATE).toLocaleString() : (post.time || ''),
+                          content: post.POST_CONTENT_DSC || post.content,
+                          userAvatarUri: post.user?.PROFILE_PIC ? `${BASE_URL}${post.user.PROFILE_PIC}` : (post.userAvatarUri || `https://picsum.photos/50/50?random=${post.ID_GROUP_POST || post.id}`),
+                          likes: post.likesCount || post.likes || 0,
+                          comments: post.commentsCount || post.comments || 0,
+                        }} onPress={() => {}} />
+                      ))
+                    ) : (
+                      POSTS_DATA.map(post => (
                         <GroupPostItem key={post.id} post={post} onPress={() => {/* Navegar a detalle del post */}} />
-                    ))}
+                      ))
+                    )}
                 </View>
             );
         }

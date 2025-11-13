@@ -14,7 +14,7 @@ const getApiBaseUrl = () => {
   } else if (Platform.OS === 'ios') {
     return 'http://192.168.0.9:8080/api';
   } else {
-    return 'http://192.168.0.9:8080/api';
+    return 'http://localhost:8080/api';
   }
 };
 
@@ -28,7 +28,7 @@ const getImageBaseUrl = () => {
   } else if (Platform.OS === 'ios') {
     return 'http://192.168.0.9:8080';
   } else {
-    return 'http://192.168.0.9:8080';
+    return 'http://localhost:8080';
   }
 };
 
