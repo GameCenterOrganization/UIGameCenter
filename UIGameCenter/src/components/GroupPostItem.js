@@ -14,7 +14,7 @@ const mockPost = {
 };
 
 const GroupPostItem = ({ post = mockPost, onPress }) => {
-    const { userAvatarUri, username, time, content, likes, comments, shares } = post;
+    const { userAvatarUri, username, time, content, imageUri, likes, comments, shares } = post;
 
     return (
         <View style={styles.cardContainer}>
@@ -32,8 +32,15 @@ const GroupPostItem = ({ post = mockPost, onPress }) => {
 
             <TouchableOpacity onPress={onPress} style={styles.postBody}>
                 <Text style={styles.contentText}>{content}</Text>
+                
+                {imageUri && (
+                    <Image 
+                        source={{ uri: imageUri }} 
+                        style={styles.postImage}
+                        onError={(e) => console.log("Error cargando imagen del post:", imageUri, e.nativeEvent.error)}
+                    />
+                )}
             </TouchableOpacity>
-
 
             <View style={styles.postFooter}>
 
@@ -65,7 +72,6 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
     
-    // --- Header ---
     postHeader: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -99,9 +105,16 @@ const styles = StyleSheet.create({
         color: COLORS.white,
         fontSize: 15,
         lineHeight: 20,
+        marginBottom: 10,
+    },
+    postImage: {
+        width: '100%',
+        height: 200,
+        borderRadius: 10,
+        marginTop: 10,
+        backgroundColor: COLORS.inputBackground,
     },
 
-    // --- Footer
     postFooter: {
         flexDirection: 'row',
         marginTop: 15,
