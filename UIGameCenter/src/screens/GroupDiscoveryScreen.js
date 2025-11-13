@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert, Platform } from 'react-native';
 import COLORS from '../constants/Colors';
 import GroupCardComponent from '../components/GroupCardComponent';
 import { Ionicons } from '@expo/vector-icons';
-import { getAuth } from 'firebase/auth';
+import { getAuth } from 'firebase/auth'; 
 
 
 const BASE_URL = "http://localhost:8080"; 
@@ -13,7 +13,7 @@ const getFirebaseToken = async () => {
     try {
         const user = getAuth().currentUser;
         if (user) {
-            return await user.getIdToken();
+            return await user.getIdToken(); 
         }
         return null;
     } catch (error) {
@@ -31,6 +31,7 @@ const mapApiToGroupCard = (group) => {
     const imageUri = imagePath ? `${BASE_URL}${imagePath}` : null;
     
     const cardSubtitle = group.COMMUNITY_TYPE_DSC === 'GAME' ? 'Comunidad de Juego' : 'Comunidad de Streamer';
+    const isMember = group.IS_MEMBER_BOOL || false;
 
     return {
         id: group.ID_GROUP, 
@@ -45,6 +46,7 @@ const mapApiToGroupCard = (group) => {
             ? (hasStreamerInfo && group.streamerInfo.LIVE_SPECTATORS_INT ? group.streamerInfo.LIVE_SPECTATORS_INT.toLocaleString('es-ES') : 'N/A') 
             : undefined,
         streamLink: isStreamer ? group.streamerInfo?.STREAMER_LINK_DSC : undefined, 
+        isMember: isMember, 
     };
 };
 
@@ -56,10 +58,13 @@ const GroupDiscoveryScreen = ({ navigation }) => {
     const fetchGroups = useCallback(async () => {
         setLoading(true);
         try {
+            const token = await getFirebaseToken();
+            
             const response = await fetch(API_URL, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
+                    ...(token && { 'Authorization': `Bearer ${token}` }), 
                 },
             });
 
@@ -97,6 +102,22 @@ const GroupDiscoveryScreen = ({ navigation }) => {
         console.log('Recargando grupos después de crear uno nuevo...');
         fetchGroups();
     }, [fetchGroups]);
+
+    const handleJoinSuccess = (group) => {
+        const message = `¡Bienvenido! Te has unido a ${group.title} correctamente.`;
+
+        if (Platform.OS === 'web') {
+            window.alert(`Éxito: ${message}`); 
+        } else {
+            Alert.alert('Éxito', message);
+        }
+        
+        navigateToGroupDetail(group);
+        
+        setTimeout(() => {
+            fetchGroups();
+        }, 500); 
+    };
 
     const currentGroups = groupsData[activeType]; 
 
@@ -152,11 +173,17 @@ const GroupDiscoveryScreen = ({ navigation }) => {
                 ) : (
                     <View style={styles.gridContainer}>
                         {currentGroups.map(group => (
-                            <GroupCardComponent key={group.id} group={group} onPress={() => navigateToGroupDetail(group)} />
+                            <GroupCardComponent 
+                                key={group.id} 
+                                group={group} 
+                                onPress={() => navigateToGroupDetail(group)} 
+                                onJoinSuccess={handleJoinSuccess} 
+                                navigation={navigation} 
+                            />
                         ))}
-                         {currentGroups.length === 0 && (
-                             <Text style={styles.noDataText}>No hay grupos disponibles en esta categoría.</Text>
-                        )}
+                           {currentGroups.length === 0 && (
+                               <Text style={styles.noDataText}>No hay grupos disponibles en esta categoría.</Text>
+                           )}
                     </View>
                 )}
                 

@@ -64,7 +64,7 @@ export default function RegisterScreen({ navigation }) {
             const user = userCredential.user;
             const idToken = await user.getIdToken();
 
-            fetch("http://192.168.0.9:8080/api/users/register", {
+            fetch("http://192.168.0.6:8080/api/users/register", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

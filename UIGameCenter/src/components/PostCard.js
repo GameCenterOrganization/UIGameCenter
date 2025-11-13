@@ -6,7 +6,6 @@ import COLORS from '../constants/Colors';
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
 
-
 const CARD_PADDING = width < 768 ? 16 : 40;
 const CARD_MAX_WIDTH = isWeb ? 800 : 700;
 const CARD_WIDTH = Math.min(width - (CARD_PADDING * 2), CARD_MAX_WIDTH);
@@ -142,7 +141,7 @@ const PostCard = ({ post, onPress, currentUser, onDelete }) => {
                   activeOpacity={0.9}
                 >
                   <Image
-                    source={{ uri: `http://192.168.0.9:8080${uri}` }}
+                    source={{ uri: `http://192.168.0.6:8080${uri}` }}
                     style={styles.mainImage}
                     resizeMode="cover"
                   />
@@ -169,7 +168,7 @@ const PostCard = ({ post, onPress, currentUser, onDelete }) => {
           <View style={styles.authorInfo}>
             {user?.PROFILE_PIC ? (
               <Image 
-                source={{ uri: `http://192.168.0.9:8080${user.PROFILE_PIC}` }} 
+                source={{ uri: `http://192.168.0.6:8080${user.PROFILE_PIC}` }} 
                 style={styles.authorAvatar} 
               />
             ) : (
