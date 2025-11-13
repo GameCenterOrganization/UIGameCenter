@@ -1,71 +1,63 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-    View, Text, StyleSheet, ScrollView, 
-    Image, TouchableOpacity, TextInput, 
+import {
+    View, Text, StyleSheet, ScrollView,
+    Image, TouchableOpacity, TextInput,
     SafeAreaView, Modal, Switch, Linking, Alert, ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native'; 
-
+import { useFocusEffect } from '@react-navigation/native';
 import COLORS from '../constants/Colors';
-import GroupPostItem from '../components/GroupPostItem'; 
-import MemberListingRow from '../components/MemberListingRow'; 
+import GroupPostItem from '../components/GroupPostItem';
+import MemberListingRow from '../components/MemberListingRow';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import * as ImagePicker from 'expo-image-picker';
 
-const BASE_URL = "http://localhost:8080"; 
+const BASE_URL = "http://localhost:8080";
 const API_URL = `${BASE_URL}/api/group`;
 
-// Obtener token de Firebase asegurando que el usuario esté cargado
 const getFirebaseToken = async () => {
-  const auth = getAuth();
-  return new Promise((resolve) => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      unsubscribe();
-      try {
-        if (user) {
-          const token = await user.getIdToken();
-          resolve(token);
-        } else {
-          resolve(null);
-        }
-      } catch (err) {
-        console.error("Error obteniendo token firebase:", err);
-        resolve(null);
-      }
+    const auth = getAuth();
+    return new Promise((resolve) => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            unsubscribe();
+            try {
+                if (user) {
+                    const token = await user.getIdToken();
+                    resolve(token);
+                } else {
+                    resolve(null);
+                }
+            } catch (err) {
+                console.error("Error obteniendo token firebase:", err);
+                resolve(null);
+            }
+        });
     });
-  });
 };
 
 const mapApiToGroupDetail = (group) => {
     const isStreamer = !!group.streamerInfo;
-    const isLive = isStreamer && group.streamerInfo?.IS_LIVE_BOOL; 
-    
+    const isLive = isStreamer && group.streamerInfo?.IS_LIVE_BOOL;
     const membersTotal = group.GROUP_MEMBER_COUNT ? group.GROUP_MEMBER_COUNT.toLocaleString('es-ES') : '0';
-
     return {
-        id: group.ID_GROUP, 
+        id: group.ID_GROUP,
         name: group.GROUP_NAME_DSC,
-        subtitle: group.SUBTITLE_DSC || 'Sin descripción.', 
+        subtitle: group.SUBTITLE_DSC || 'Sin descripción.',
         communityType: group.COMMUNITY_TYPE_DSC,
         membersTotal: membersTotal,
         isStreamer: isStreamer,
-        
-        bannerUri: group.BANNER_IMG_URL 
-            ? `${BASE_URL}${group.BANNER_IMG_URL}` 
+        bannerUri: group.BANNER_IMG_URL
+            ? `${BASE_URL}${group.BANNER_IMG_URL}`
             : `https://picsum.photos/600/200?random=${group.ID_GROUP}_bg`,
-   
-        profilePicUri: group.PROFILE_IMG_URL 
-            ? `${BASE_URL}${group.PROFILE_IMG_URL}` 
+        profilePicUri: group.PROFILE_IMG_URL
+            ? `${BASE_URL}${group.PROFILE_IMG_URL}`
             : `https://picsum.photos/100/100?random=${group.ID_GROUP}_pfp`,
-        
-        membersOnline: isStreamer ? '3,400' : '1,234', 
+        membersOnline: isStreamer ? '3,400' : '1,234',
         isLive: isLive,
-        streamLink: isStreamer ? group.streamerInfo.STREAM_URL : null, 
+        streamLink: isStreamer ? group.streamerInfo.STREAM_URL : null,
         liveSpectators: isLive ? (group.streamerInfo.LIVE_SPECTATORS_INT ? group.streamerInfo.LIVE_SPECTATORS_INT.toLocaleString('es-ES') : 'N/A') : null,
     };
 };
-
 
 const MEMBERS_DATA = [
     { id: 'm1', username: 'GamerPro123', role: 'Admin', avatarUri: 'https://picsum.photos/40/40?random=a', isOnline: true },
@@ -74,11 +66,11 @@ const MEMBERS_DATA = [
     { id: 'm4', username: 'NoobMaster', role: 'Miembro', avatarUri: 'https://picsum.photos/40/40?random=d', isOnline: false },
 ];
 
+
 const POSTS_DATA = [
     { id: 'p1', username: 'GamerPro123', time: 'Hace 2 horas', content: '¿Alguien para ranked? Necesitamos 2 más para el equipo. Nivel Platino o superior.', likes: 24, comments: 8, shares: 2, userAvatarUri: 'https://picsum.photos/50/50?random=p1' },
     { id: 'p2', username: 'ProPlayer99', time: 'Ayer', content: 'Gran torneo el fin de semana. ¡Felicidades a los ganadores!', likes: 105, comments: 3, shares: 1, userAvatarUri: 'https://picsum.photos/50/50?random=p2' },
 ];
-
 
 const AvisarDirectoModal = ({ isVisible, onClose }) => {
     const [streamTitle, setStreamTitle] = useState('');
@@ -188,7 +180,6 @@ const AvisarDirectoModal = ({ isVisible, onClose }) => {
         },
     });
 
-
     return (
         <Modal
             animationType="slide"
@@ -201,7 +192,6 @@ const AvisarDirectoModal = ({ isVisible, onClose }) => {
                     <Text style={modalStyles.modalTitle}>
                         {isLiveNow ? 'Avisar Directo AHORA' : 'Programar Directo/Evento'}
                     </Text>
-                    
                     <View style={modalStyles.toggleRow}>
                         <Text style={modalStyles.toggleText}>¿Estás en directo ahora?</Text>
                         <Switch
@@ -211,7 +201,6 @@ const AvisarDirectoModal = ({ isVisible, onClose }) => {
                             value={isLiveNow}
                         />
                     </View>
-
                     <TextInput
                         style={modalStyles.input}
                         placeholder="Título del Stream/Evento (Ej: Ranked con subs)"
@@ -219,17 +208,15 @@ const AvisarDirectoModal = ({ isVisible, onClose }) => {
                         value={streamTitle}
                         onChangeText={setStreamTitle}
                     />
-
                     {!isLiveNow && (
                         <TouchableOpacity style={modalStyles.dateButton}>
                             <Ionicons name="calendar-outline" size={20} color={COLORS.purple} />
                             <Text style={modalStyles.dateButtonText}>Seleccionar Fecha y Hora</Text>
                         </TouchableOpacity>
                     )}
-
                     <View style={modalStyles.buttonRow}>
-                        <TouchableOpacity 
-                            style={[modalStyles.button, modalStyles.cancelButton]} 
+                        <TouchableOpacity
+                            style={[modalStyles.button, modalStyles.cancelButton]}
                             onPress={onClose}
                         >
                             <Text style={modalStyles.textStyle}>Cancelar</Text>
@@ -250,24 +237,19 @@ const AvisarDirectoModal = ({ isVisible, onClose }) => {
     );
 };
 
-
-
 const GroupDetailView = ({ navigation, route }) => {
     const [activeTab, setActiveTab] = useState('Publicaciones');
     const [isAvisarModalVisible, setIsAvisarModalVisible] = useState(false);
-    const [groupData, setGroupData] = useState(null); 
-    const [loading, setLoading] = useState(true); 
-    
-    // estados para posts (integración backend)
+    const [groupData, setGroupData] = useState(null);
+    const [loading, setLoading] = useState(true);
     const [posts, setPosts] = useState([]);
     const [newPostText, setNewPostText] = useState("");
     const [imageUri, setImageUri] = useState(null);
-
-    const groupId = route.params?.groupData?.id; 
+    const groupId = route.params?.groupData?.id;
 
     const handleStreamPress = () => {
         if (groupData?.streamLink) {
-            Linking.openURL(groupData.streamLink).catch(err => 
+            Linking.openURL(groupData.streamLink).catch(err =>
                 Alert.alert("Error", "No se pudo abrir el enlace: " + groupData.streamLink)
             );
         }
@@ -276,14 +258,13 @@ const GroupDetailView = ({ navigation, route }) => {
     const handleSettingsPress = () => {
         navigation.navigate('EditGroupScreen', { groupId: groupData.id, initialData: groupData });
     };
-    
+
     const fetchGroupDetail = useCallback(async () => {
         if (!groupId) {
             setLoading(false);
             Alert.alert("Error", "ID del grupo no proporcionado. Asegúrate de pasar 'groupData.id' en la navegación.");
             return;
         }
-
         setLoading(true);
         try {
             const response = await fetch(`${API_URL}/${groupId}`, {
@@ -292,16 +273,12 @@ const GroupDetailView = ({ navigation, route }) => {
                     'Content-Type': 'application/json',
                 },
             });
-
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.message || 'Error al cargar el detalle del grupo');
             }
-
             const data = await response.json();
-            
-            const mappedDetail = mapApiToGroupDetail(data.group); 
-
+            const mappedDetail = mapApiToGroupDetail(data.group);
             setGroupData(mappedDetail);
         } catch (error) {
             console.error('Error fetching group detail:', error);
@@ -312,40 +289,75 @@ const GroupDetailView = ({ navigation, route }) => {
         }
     }, [groupId]);
 
-    // obtener posts reales desde backend
     const fetchGroupPosts = async () => {
-      try {
-        const res = await fetch(`${API_URL}/${groupId}/posts`);
-        const data = await res.json();
-        if (!res.ok) {
-          console.error("Error fetching posts:", data);
-          return;
+        try {
+            const res = await fetch(`${API_URL}/${groupId}/posts`);
+            const data = await res.json();
+            if (!res.ok) {
+                console.error("Error fetching posts:", data);
+                return;
+            }
+            
+        } catch (err) {
+            console.error("Error cargando publicaciones:", err);
         }
-        if (Array.isArray(data.posts)) {
-          setPosts(data.posts);
-        }
-      } catch (err) {
-        console.error("Error cargando publicaciones:", err);
-      }
     };
 
     useFocusEffect(
         useCallback(() => {
             fetchGroupDetail();
             fetchGroupPosts();
-            return () => {}; 
-        }, [fetchGroupDetail])
+            return () => { };
+        }, [fetchGroupDetail, groupId])
     );
-    
-    const renderContent = () => {
-        if (!groupData) return null; 
+
+    const constructImageUri = (imageObj) => {
+        if (!imageObj) return null;
         
+        const possibleFields = [
+            'IMG_URL', 'IMG_URL_DSC', 'IMAGE_URL', 'path', 'filename',
+            'image_path', 'image_url', 'url', 'file_path', 'full_path', 'uri'
+        ];
+        for (const field of possibleFields) {
+            if (imageObj[field]) {
+                let url = imageObj[field];
+                if (!url.startsWith('http')) {
+                    if (url.startsWith('/')) {
+                        url = `${BASE_URL}${url}`;
+                    } else {
+                        url = `${BASE_URL}/${url}`;
+                    }
+                }
+                return url;
+            }
+        }
+        
+        for (const [key, value] of Object.entries(imageObj)) {
+            if (typeof value === 'string' &&
+                (value.includes('image') || value.includes('img') ||
+                 value.includes('.jpg') || value.includes('.png') || value.includes('.jpeg') ||
+                 value.includes('/images/'))) {
+                let url = value;
+                if (!url.startsWith('http')) {
+                    if (url.startsWith('/')) {
+                        url = `${BASE_URL}${url}`;
+                    } else {
+                        url = `${BASE_URL}/${url}`;
+                    }
+                }
+                return url;
+            }
+        }
+        return null;
+    };
+
+    const renderContent = () => {
+        if (!groupData) return null;
         if (activeTab === 'Publicaciones') {
             return (
                 <View>
-                    
                     <View style={styles.createPostContainer}>
-                        <Text style={styles.userAvatarInitial}>TU</Text> 
+                        <Text style={styles.userAvatarInitial}>TU</Text>
                         <TextInput
                             placeholder="¿Qué quieres compartir con el grupo?"
                             placeholderTextColor={COLORS.grayText}
@@ -356,108 +368,143 @@ const GroupDetailView = ({ navigation, route }) => {
                         />
                         <View style={styles.postActions}>
                             <TouchableOpacity style={styles.imageButton} onPress={async () => {
-                              const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                              if (!permission.granted) {
-                                Alert.alert("Permiso denegado", "Debes permitir acceso a la galería para subir imágenes.");
-                                return;
-                              }
-                              const result = await ImagePicker.launchImageLibraryAsync({
-                                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                                allowsEditing: true,
-                                quality: 0.8,
-                              });
-                              if (!result.canceled) setImageUri(result.assets[0].uri);
+                                const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                                if (!permission.granted) {
+                                    Alert.alert("Permiso denegado", "Debes permitir acceso a la galería para subir imágenes.");
+                                    return;
+                                }
+                                const result = await ImagePicker.launchImageLibraryAsync({
+                                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                                    allowsEditing: true,
+                                    quality: 0.8,
+                                });
+                                if (!result.canceled) setImageUri(result.assets[0].uri);
                             }}>
                                 <Ionicons name="image-outline" size={24} color={COLORS.grayText} />
                                 <Text style={styles.imageButtonText}>Imagen</Text>
                             </TouchableOpacity>
                             <TouchableOpacity style={styles.postButton} onPress={async () => {
-                              if (!newPostText.trim()) return Alert.alert("Escribe algo para publicar");
-                              try {
-                                const token = await getFirebaseToken();
-                                if (!token) return Alert.alert("No autenticado", "Inicia sesión para publicar.");
-
-                                const formData = new FormData();
-                                formData.append("POST_CONTENT_DSC", newPostText);
-
-                                if (imageUri) {
-                                  const filename = imageUri.split("/").pop();
-                                  const match = /\.(\w+)$/.exec(filename);
-                                  const type = match ? `image/${match[1]}` : "image";
-                                  formData.append("image", { uri: imageUri, name: filename, type });
+                                if (!newPostText.trim()) return Alert.alert("Escribe algo para publicar");
+                                try {
+                                    const token = await getFirebaseToken();
+                                    if (!token) return Alert.alert("No autenticado", "Inicia sesión para publicar.");
+                                    const formData = new FormData();
+                                    formData.append("POST_CONTENT_DSC", newPostText);
+                                    
+                                    if (imageUri) {
+                                        const response = await fetch(imageUri);
+                                        const blob = await response.blob();
+                                        const filename = `photo_${Date.now()}.jpg`;
+                                        formData.append("image", blob, filename);
+                                        
+                                    }
+                                    
+                                    const res = await fetch(`${API_URL}/${groupId}/posts`, {
+                                        method: 'POST',
+                                        headers: {
+                                            "Authorization": `Bearer ${token}`,
+                                        },
+                                        body: formData,
+                                    });
+                                    
+                                    const data = await res.json();
+                                    
+                                    if (!res.ok) {
+                                        throw new Error(data.message || "Error creando publicación");
+                                    }
+                                    if (data.post) {
+                                        
+                                        setPosts(prev => [data.post, ...prev]);
+                                        setNewPostText("");
+                                        setImageUri(null);
+                                        
+                                    }
+                                } catch (err) {
+                                    console.error("Error creating post:", err);
+                                    Alert.alert("Error al publicar", err.message || "Revisa la consola");
                                 }
-
-                                const res = await fetch(`${API_URL}/${groupId}/posts`, {
-                                  method: 'POST',
-                                  headers: {
-                                    "Authorization": `Bearer ${token}`,
-                                    "Accept": "application/json"
-                                  },
-                                  body: formData,
-                                });
-
-                                const data = await res.json();
-                                if (!res.ok) {
-                                  throw new Error(data.message || "Error creando publicación");
-                                }
-
-                                if (data.post) setPosts(prev => [data.post, ...prev]);
-                                setNewPostText("");
-                                setImageUri(null);
-                              } catch (err) {
-                                console.error("Error creating post:", err);
-                                Alert.alert("Error al publicar", err.message || "Revisa la consola");
-                              }
                             }}>
                                 <Text style={styles.postButtonText}>Publicar</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
-
                     {imageUri && (
-                      <Image source={{ uri: imageUri }} style={{ width: '100%', height: 200, borderRadius: 10, marginBottom: 10 }} />
+                        <View style={{ position: 'relative', marginBottom: 10 }}>
+                            <Image source={{ uri: imageUri }} style={{ width: '100%', height: 200, borderRadius: 10 }} />
+                            <TouchableOpacity
+                                style={{
+                                    position: 'absolute',
+                                    top: 10,
+                                    right: 10,
+                                    backgroundColor: 'rgba(0,0,0,0.6)',
+                                    borderRadius: 15,
+                                    width: 30,
+                                    height: 30,
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                }}
+                                onPress={() => setImageUri(null)}
+                            >
+                                <Ionicons name="close" size={20} color={COLORS.white} />
+                            </TouchableOpacity>
+                        </View>
                     )}
-
                     {posts.length > 0 ? (
-                      posts.map(post => (
-                        <GroupPostItem key={post.ID_GROUP_POST || post.id} post={{
-                          id: post.ID_GROUP_POST || post.id,
-                          username: post.user?.USERNAME_DSC || post.username || "Miembro",
-                          time: post.POST_DATE ? new Date(post.POST_DATE).toLocaleString() : (post.time || ''),
-                          content: post.POST_CONTENT_DSC || post.content,
-                          userAvatarUri: post.user?.PROFILE_PIC ? `${BASE_URL}${post.user.PROFILE_PIC}` : (post.userAvatarUri || `https://picsum.photos/50/50?random=${post.ID_GROUP_POST || post.id}`),
-                          likes: post.likesCount || post.likes || 0,
-                          comments: post.commentsCount || post.comments || 0,
-                        }} onPress={() => {}} />
-                      ))
+                        posts.map(post => {
+                            
+                            let imageUri = null;
+                            if (post.images && Array.isArray(post.images) && post.images.length > 0) {
+                                
+                                imageUri = constructImageUri(post.images[0]);
+                                
+                            } else if (post.images && typeof post.images === 'object' && !Array.isArray(post.images)) {
+                                
+                                imageUri = constructImageUri(post.images);
+                            }
+                            
+                            return (
+                                <GroupPostItem
+                                    key={post.ID_GROUP_POST || post.id}
+                                    post={{
+                                        id: post.ID_GROUP_POST || post.id,
+                                        username: post.user?.USERNAME_DSC || post.username || "Miembro",
+                                        time: post.POST_DATE ? new Date(post.POST_DATE).toLocaleString() : (post.time || ''),
+                                        content: post.POST_CONTENT_DSC || post.content,
+                                        imageUri: imageUri, 
+                                        userAvatarUri: post.user?.PROFILE_PIC ? `${BASE_URL}${post.user.PROFILE_PIC}` : `https://picsum.photos/50/50?random=${post.ID_GROUP_POST || post.id}`,
+                                        likes: post.likesCount || post.likes || 0,
+                                        comments: post.commentsCount || post.comments || 0,
+                                    }}
+                                    onPress={() => { }}
+                                />
+                            );
+                        })
                     ) : (
-                      POSTS_DATA.map(post => (
-                        <GroupPostItem key={post.id} post={post} onPress={() => {/* Navegar a detalle del post */}} />
-                      ))
+                        <Text style={{ color: COLORS.white, textAlign: 'center', padding: 20 }}>
+                            No hay publicaciones en este grupo
+                        </Text>
                     )}
                 </View>
             );
         }
-
         if (activeTab === 'Miembros') {
             return (
                 <View style={styles.membersListContainer}>
                     <Text style={styles.membersCountText}>Miembros del grupo</Text>
                     <Text style={styles.membersCountSubText}>{groupData.membersTotal} miembros • {groupData.membersOnline} en línea</Text>
                     {MEMBERS_DATA.map(member => (
-                        <MemberListingRow key={member.id} member={member} onPressProfile={() => {/* Navegar a perfil */}} />
+                        <MemberListingRow key={member.id} member={member} onPressProfile={() => { }} />
                     ))}
                 </View>
             );
         }
-
         if (activeTab === 'Eventos') {
             return (
                 <View style={styles.placeholderContainer}>
                     <Text style={styles.placeholderText}>Aquí se mostrarán los Eventos Programados del Grupo.</Text>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         style={styles.eventActionButton}
-                        onPress={() => navigation.navigate('ProgramarEvento')} 
+                        onPress={() => navigation.navigate('ProgramarEvento')}
                     >
                         <Text style={styles.eventActionButtonText}>Programar Evento</Text>
                     </TouchableOpacity>
@@ -467,8 +514,6 @@ const GroupDetailView = ({ navigation, route }) => {
         return null;
     };
 
-
-
     if (loading) {
         return (
             <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -477,9 +522,9 @@ const GroupDetailView = ({ navigation, route }) => {
             </SafeAreaView>
         );
     }
-    
+
     if (!groupData) {
-         return (
+        return (
             <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
                 <Ionicons name="alert-circle-outline" size={50} color={COLORS.red} />
                 <Text style={{ color: COLORS.white, marginTop: 20, fontSize: 18, textAlign: 'center' }}>
@@ -488,8 +533,8 @@ const GroupDetailView = ({ navigation, route }) => {
                 <Text style={{ color: COLORS.grayText, marginTop: 10, fontSize: 14, textAlign: 'center' }}>
                     Verifica tu conexión y que el ID del grupo sea correcto ({groupId || 'ID Faltante'}).
                 </Text>
-                <TouchableOpacity 
-                    onPress={() => navigation.goBack()} 
+                <TouchableOpacity
+                    onPress={() => navigation.goBack()}
                     style={{ marginTop: 30, paddingVertical: 10, paddingHorizontal: 20, backgroundColor: COLORS.purple, borderRadius: 8 }}
                 >
                     <Text style={{ color: COLORS.white, fontWeight: '700' }}>Volver</Text>
@@ -500,25 +545,17 @@ const GroupDetailView = ({ navigation, route }) => {
 
     return (
         <SafeAreaView style={styles.container}>
-    
-            <AvisarDirectoModal 
+            <AvisarDirectoModal
                 isVisible={isAvisarModalVisible}
                 onClose={() => setIsAvisarModalVisible(false)}
             />
-
             <ScrollView showsVerticalScrollIndicator={false}>
-
                 <View style={styles.headerContainer}>
-           
                     <Image source={{ uri: groupData.bannerUri }} style={styles.bannerImage} />
-                    
-                    
                     <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
                         <Ionicons name="arrow-back" size={24} color={COLORS.white} />
                     </TouchableOpacity>
-                    
                     <View style={styles.groupInfoBox}>
-                        
                         <View style={styles.groupHeaderRow}>
                             <Image source={{ uri: groupData.profilePicUri }} style={styles.profileImage} />
                             <View style={styles.titleContainer}>
@@ -526,23 +563,15 @@ const GroupDetailView = ({ navigation, route }) => {
                                 <Text style={styles.groupSubtitleText}>{groupData.communityType}</Text>
                             </View>
                         </View>
-                        
                         <Text style={styles.groupDescriptionText}>{groupData.subtitle}</Text>
-                        
                         <View style={styles.groupContentRow}>
-                    
                             <View style={styles.statsAndActions}>
-                                
                                 <View style={styles.statsRow}>
                                     <Text style={styles.statText}>
                                         {groupData.membersTotal} miembros • {groupData.membersOnline} en línea
                                     </Text>
                                 </View>
-
-                            
                                 <View style={styles.actionButtonsRow}>
-                                        
-                                        
                                     {groupData.isLive && groupData.isStreamer && (
                                         <View style={styles.liveBadge}>
                                             <Text style={styles.liveBadgeText}>
@@ -550,18 +579,15 @@ const GroupDetailView = ({ navigation, route }) => {
                                             </Text>
                                         </View>
                                     )}
-
-                                
                                     {groupData.isStreamer && groupData.streamLink && (
-                                        <TouchableOpacity 
-                                            style={styles.streamActionButton} 
-                                            onPress={handleStreamPress} // Usa la función Linking
+                                        <TouchableOpacity
+                                            style={styles.streamActionButton}
+                                            onPress={handleStreamPress}
                                         >
                                             <Ionicons name="logo-twitch" size={20} color={COLORS.white} />
                                             <Text style={styles.actionText}>Ver Stream</Text>
                                         </TouchableOpacity>
                                     )}
-                                    
                                     <TouchableOpacity style={styles.actionIcon}>
                                         <Ionicons name="notifications-outline" size={20} color={COLORS.white} />
                                         <Text style={styles.actionText}>Notificaciones</Text>
@@ -570,17 +596,15 @@ const GroupDetailView = ({ navigation, route }) => {
                                         <Ionicons name="share-social-outline" size={20} color={COLORS.white} />
                                         <Text style={styles.actionText}>Compartir</Text>
                                     </TouchableOpacity>
-
-                                    <TouchableOpacity 
+                                    <TouchableOpacity
                                         style={styles.actionIcon}
-                                        onPress={handleSettingsPress} 
+                                        onPress={handleSettingsPress}
                                     >
                                         <Ionicons name="settings-outline" size={20} color={COLORS.white} />
                                         <Text style={styles.actionText}>Configuración</Text>
                                     </TouchableOpacity>
-                                    
                                     {groupData.isStreamer && (
-                                        <TouchableOpacity 
+                                        <TouchableOpacity
                                             style={styles.actionIcon}
                                             onPress={() => setIsAvisarModalVisible(true)}
                                         >
@@ -588,13 +612,11 @@ const GroupDetailView = ({ navigation, route }) => {
                                             <Text style={styles.actionText}>Avisar Directo</Text>
                                         </TouchableOpacity>
                                     )}
-
                                 </View>
                             </View>
                         </View>
                     </View>
                 </View>
-            
                 <View style={styles.tabContainer}>
                     {['Publicaciones', 'Miembros', 'Eventos'].map(tab => (
                         <TouchableOpacity
@@ -606,11 +628,9 @@ const GroupDetailView = ({ navigation, route }) => {
                         </TouchableOpacity>
                     ))}
                 </View>
-
                 <View style={styles.contentArea}>
                     {renderContent()}
                 </View>
-
             </ScrollView>
         </SafeAreaView>
     );
@@ -618,7 +638,6 @@ const GroupDetailView = ({ navigation, route }) => {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: COLORS.darkBackground },
-
     headerContainer: {
         backgroundColor: COLORS.darkerBackground,
         paddingBottom: 15,
@@ -626,7 +645,7 @@ const styles = StyleSheet.create({
     bannerImage: {
         width: '100%',
         height: 180,
-        backgroundColor: COLORS.inputBackground, 
+        backgroundColor: COLORS.inputBackground,
     },
     backButton: {
         position: 'absolute',
@@ -645,7 +664,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: 10,
-        marginTop: -50, 
+        marginTop: -50,
     },
     titleContainer: {
         flex: 1,
@@ -653,7 +672,7 @@ const styles = StyleSheet.create({
     },
     groupTitleText: {
         color: COLORS.white,
-        fontSize: 22, 
+        fontSize: 22,
         fontWeight: '900',
         marginBottom: 2,
     },
@@ -697,8 +716,8 @@ const styles = StyleSheet.create({
     actionButtonsRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        flexWrap: 'wrap', 
-        gap: 8, 
+        flexWrap: 'wrap',
+        gap: 8,
     },
     liveBadge: {
         backgroundColor: COLORS.red,
@@ -712,10 +731,10 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         fontSize: 12,
     },
-    streamActionButton: { 
+    streamActionButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: COLORS.purple, 
+        backgroundColor: COLORS.purple,
         paddingHorizontal: 10,
         paddingVertical: 5,
         borderRadius: 8,
@@ -734,7 +753,6 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         marginLeft: 5,
     },
-
     tabContainer: {
         flexDirection: 'row',
         justifyContent: 'space-around',
@@ -760,12 +778,10 @@ const styles = StyleSheet.create({
         color: COLORS.white,
         fontWeight: '700',
     },
-
     contentArea: {
         paddingHorizontal: 15,
         paddingTop: 10,
     },
-    
     createPostContainer: {
         backgroundColor: COLORS.darkerBackground,
         borderRadius: 10,
@@ -788,7 +804,7 @@ const styles = StyleSheet.create({
     },
     postInput: {
         minHeight: 60,
-        paddingLeft: 50, 
+        paddingLeft: 50,
         color: COLORS.white,
         fontSize: 15,
         paddingTop: 5,
@@ -823,7 +839,6 @@ const styles = StyleSheet.create({
         color: COLORS.white,
         fontWeight: '700',
     },
-
     membersListContainer: {},
     membersCountText: {
         color: COLORS.white,
@@ -860,102 +875,6 @@ const styles = StyleSheet.create({
         color: COLORS.white,
         fontWeight: '700',
     }
-});
-
-const modalStylesOverride = StyleSheet.create({
-    centeredView: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    },
-    modalView: {
-        margin: 20,
-        backgroundColor: COLORS.darkerBackground,
-        borderRadius: 20,
-        padding: 35,
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
-        elevation: 5,
-        width: '90%',
-        maxWidth: 400,
-    },
-    modalTitle: {
-        marginBottom: 20,
-        textAlign: 'center',
-        color: COLORS.white,
-        fontSize: 20,
-        fontWeight: 'bold',
-    },
-    toggleRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        width: '100%',
-        marginBottom: 15,
-        padding: 8,
-        backgroundColor: COLORS.inputBackground,
-        borderRadius: 10,
-    },
-    toggleText: {
-        color: COLORS.white,
-        fontSize: 15,
-    },
-    input: {
-        width: '100%',
-        marginBottom: 15,
-        padding: 10,
-        backgroundColor: COLORS.inputBackground,
-        borderRadius: 10,
-        color: COLORS.white,
-        fontSize: 15,
-        minHeight: 45,
-    },
-    dateButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: '100%',
-        padding: 10,
-        marginBottom: 20,
-        backgroundColor: COLORS.inputBackground,
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: COLORS.purple,
-    },
-    dateButtonText: {
-        color: COLORS.purple,
-        marginLeft: 10,
-        fontWeight: '700',
-    },
-    buttonRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        width: '100%',
-        marginTop: 10,
-    },
-    button: {
-        borderRadius: 10,
-        padding: 10,
-        elevation: 2,
-        flex: 1,
-        marginHorizontal: 5,
-        alignItems: 'center',
-    },
-    cancelButton: {
-        backgroundColor: COLORS.inputBackground,
-    },
-    programButton: {
-        backgroundColor: COLORS.purple,
-    },
-    textStyle: {
-        color: COLORS.white,
-        fontWeight: '600',
-        textAlign: 'center',
-    },
 });
 
 export default GroupDetailView;
