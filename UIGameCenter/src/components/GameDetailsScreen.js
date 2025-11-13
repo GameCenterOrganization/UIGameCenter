@@ -15,7 +15,7 @@ import {
 import { FontAwesome, Ionicons } from '@expo/vector-icons'; 
 import axios from 'axios';
 
-const BASE_URL = 'http://localhost:3000'; 
+const BASE_URL = 'http://192.168.0.6:3000'; 
 
 const { width, height } = Dimensions.get('window');
 
