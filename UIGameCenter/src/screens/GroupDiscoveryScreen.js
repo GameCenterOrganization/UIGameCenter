@@ -5,7 +5,8 @@ import GroupCardComponent from '../components/GroupCardComponent';
 import { Ionicons } from '@expo/vector-icons';
 import { getAuth } from 'firebase/auth'; 
 
-const BASE_URL = "http://192.168.0.6:8080"; 
+
+const BASE_URL = "http://localhost:8080"; 
 const API_URL = `${BASE_URL}/api/group`;
 
 const getFirebaseToken = async () => {

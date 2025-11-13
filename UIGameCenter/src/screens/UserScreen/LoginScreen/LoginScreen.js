@@ -50,7 +50,7 @@ const onSubmit = async (data) => {
     console.log("Usuario Firebase:", user.email);
 
     
-    fetch("http://192.168.0.6:8080/api/users/profile", {
+    fetch("http://localhost:8080/api/users/profile", {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${idToken}`,

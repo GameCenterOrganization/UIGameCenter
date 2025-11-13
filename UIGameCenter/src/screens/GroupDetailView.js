@@ -1,206 +1,469 @@
-// src/views/GroupDetailView.js (Código Completo Actualizado)
-
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-    View, Text, StyleSheet, ScrollView, 
-    Image, TouchableOpacity, TextInput, 
-    SafeAreaView, Modal, Switch, Linking, Alert, ActivityIndicator,Platform
+import {
+    View, Text, StyleSheet, ScrollView,
+    Image, TouchableOpacity, TextInput,
+    SafeAreaView, Modal, Switch, Linking, Alert, ActivityIndicator, Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native'; 
-import axios from 'axios'; 
+import { useFocusEffect } from '@react-navigation/native';
+import axios from 'axios';
 import COLORS from '../constants/Colors';
-import GroupPostItem from '../components/GroupPostItem'; 
-import MemberListingRow from '../components/MemberListingRow'; 
-import { getAuth } from 'firebase/auth'; 
+import GroupPostItem from '../components/GroupPostItem';
+import MemberListingRow from '../components/MemberListingRow';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import * as ImagePicker from 'expo-image-picker';
 
-const getBaseUrl = () => {
-    if (Platform.OS === 'web') {
-        return "http://192.168.0.6:8080";
-    } else {
-        return "http://192.168.0.6:8080";
-    }
-};
-
-const BASE_URL = getBaseUrl();
+const BASE_URL = "http://localhost:8080";
 const API_URL = `${BASE_URL}/api/group`;
 const MEMBER_API_URL = `${BASE_URL}/api/group`;
 
 const VALID_ROLES = ["ADMIN", "MODERATOR", "MEMBER"];
 
 const getFirebaseToken = async () => {
-    try {
-        const user = getAuth().currentUser;
-        if (user) {
-            return await user.getIdToken();
-        }
-        return null;
-    } catch (error) {
-        console.error("Error fetching Firebase token:", error);
-        return null;
-    }
+    const auth = getAuth();
+    return new Promise((resolve) => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            unsubscribe();
+            try {
+                if (user) {
+                    const token = await user.getIdToken();
+                    resolve(token);
+                } else {
+                    resolve(null);
+                }
+            } catch (err) {
+                console.error("Error obteniendo token firebase:", err);
+                resolve(null);
+            }
+        });
+    });
 };
 
 const mapApiToGroupDetail = (group) => {
     const isStreamer = !!group.streamerInfo;
-    const isLive = isStreamer && group.streamerInfo?.IS_LIVE_BOOL; 
-    
-    const membersTotal = group.MEMBER_COUNT ? group.MEMBER_COUNT.toLocaleString('es-ES') : '0';
-    const currentFirebaseUid = getAuth().currentUser?.uid; 
+    const isLive = isStreamer && group.streamerInfo?.IS_LIVE_BOOL;
 
-     return {
-        id: group.ID_GROUP, 
+    const membersTotal = group.MEMBER_COUNT ? group.MEMBER_COUNT.toLocaleString('es-ES') : '0';
+    const currentFirebaseUid = getAuth().currentUser?.uid;
+
+    return {
+        id: group.ID_GROUP,
         name: group.GROUP_NAME_DSC,
-        subtitle: group.SUBTITLE_DSC || 'Sin descripción.', 
+        subtitle: group.SUBTITLE_DSC || 'Sin descripción.',
         communityType: group.COMMUNITY_TYPE_DSC,
         membersTotal: membersTotal,
         isStreamer: isStreamer,
-        
-        bannerUri: group.BANNER_IMG_URL 
-            ? `${BASE_URL}${group.BANNER_IMG_URL}` 
+        bannerUri: group.BANNER_IMG_URL
+            ? `${BASE_URL}${group.BANNER_IMG_URL}`
             : `https://picsum.photos/600/200?random=${group.ID_GROUP}_bg`,
-   
-        profilePicUri: group.PROFILE_IMG_URL 
-            ? `${BASE_URL}${group.PROFILE_IMG_URL}` 
+        profilePicUri: group.PROFILE_IMG_URL
+            ? `${BASE_URL}${group.PROFILE_IMG_URL}`
             : `https://picsum.photos/100/100?random=${group.ID_GROUP}_pfp`,
-        
-        membersOnline: isStreamer ? '3,400' : '1,234', 
+        membersOnline: isStreamer ? '3,400' : '1,234',
         isLive: isLive,
-        streamLink: isStreamer ? group.streamerInfo.STREAM_URL : null, 
+        streamLink: isStreamer ? group.streamerInfo.STREAM_URL : null,
         liveSpectators: isLive ? (group.streamerInfo.LIVE_SPECTATORS_INT ? group.streamerInfo.LIVE_SPECTATORS_INT.toLocaleString('es-ES') : 'N/A') : null,
-        creatorUserId: group.ID_USER_CREATOR, 
+        creatorUserId: group.ID_USER_CREATOR,
         currentFirebaseUid: currentFirebaseUid,
     };
 };
 
-const POSTS_DATA = [
-    { id: 'p1', username: 'GamerPro123', time: 'Hace 2 horas', content: '¿Alguien para ranked? Necesitamos 2 más para el equipo. Nivel Platino o superior.', likes: 24, comments: 8, shares: 2, userAvatarUri: 'https://picsum.photos/50/50?random=p1' },
-    { id: 'p2', username: 'ProPlayer99', time: 'Ayer', content: 'Gran torneo el fin de semana. ¡Felicidades a los ganadores!', likes: 105, comments: 3, shares: 1, userAvatarUri: 'https://picsum.photos/50/50?random=p2' },
-];
-
 const AvisarDirectoModal = ({ isVisible, onClose }) => {
-    return (
-        <Modal visible={isVisible} animationType="slide" transparent={true} onRequestClose={onClose}>
-            <View style={[styles.centeredView, { backgroundColor: 'rgba(0,0,0,0.8)' }]}>
-                <View style={styles.modalView}>
-                    <Text style={styles.modalTitle}>Avisar Directo</Text>
-                    <Text style={{color: COLORS.white}}>Contenido del Modal de Aviso de Directo...</Text>
-                    <TouchableOpacity onPress={onClose} style={[styles.modalButton, { backgroundColor: COLORS.purple, marginTop: 20 }]}>
-                         <Text style={styles.modalButtonText}>Cerrar</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-        </Modal>
-    )
-};
+    const [streamTitle, setStreamTitle] = useState('');
+    const [isLiveNow, setIsLiveNow] = useState(false);
 
-const AdminActionModal = ({ 
-    isVisible, 
-    onClose, 
-    targetMember, 
-    onRemove, 
-    onRoleChange 
-}) => {
-    const [isRoleModalVisible, setIsRoleModalVisible] = useState(false);
-    
-    if (!targetMember) return null;
-
-    const handleRoleSelect = (newRole) => {
-        setIsRoleModalVisible(false);
-        onRoleChange(newRole); 
+    const handleAvisar = () => {
+        if (isLiveNow) {
+            console.log('Avisando directo INMEDIATO con título:', streamTitle);
+        } else {
+            console.log('Programando directo con título:', streamTitle);
+        }
+        onClose();
     };
 
-    const rolesMenu = VALID_ROLES.filter(role => role !== targetMember.role);
-    
+    const modalStyles = StyleSheet.create({
+        centeredView: {
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: 'rgba(0,0,0,0.5)',
+        },
+        modalView: {
+            margin: 20,
+            backgroundColor: COLORS.darkBackground,
+            borderRadius: 10,
+            padding: 35,
+            alignItems: 'center',
+            shadowColor: '#000',
+            shadowOffset: {
+                width: 0,
+                height: 2,
+            },
+            shadowOpacity: 0.25,
+            shadowRadius: 4,
+            elevation: 5,
+            width: '90%',
+        },
+        modalTitle: {
+            marginBottom: 20,
+            textAlign: 'center',
+            fontSize: 20,
+            fontWeight: 'bold',
+            color: COLORS.white,
+        },
+        toggleRow: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            width: '100%',
+            marginBottom: 20,
+            paddingVertical: 10,
+        },
+        toggleText: {
+            color: COLORS.grayText,
+            fontSize: 16,
+        },
+        input: {
+            width: '100%',
+            padding: 12,
+            borderWidth: 1,
+            borderColor: COLORS.inputBackground,
+            borderRadius: 8,
+            color: COLORS.white,
+            backgroundColor: COLORS.inputBackground,
+            marginBottom: 15,
+        },
+        dateButton: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            padding: 10,
+            backgroundColor: COLORS.inputBackground,
+            borderRadius: 8,
+            width: '100%',
+            justifyContent: 'center',
+            marginBottom: 20,
+        },
+        dateButtonText: {
+            color: COLORS.purple,
+            marginLeft: 10,
+            fontWeight: '600',
+        },
+        buttonRow: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            width: '100%',
+            marginTop: 10,
+        },
+        button: {
+            borderRadius: 8,
+            padding: 10,
+            elevation: 2,
+            flex: 1,
+            marginHorizontal: 5,
+        },
+        cancelButton: {
+            backgroundColor: COLORS.inputBackground,
+            borderWidth: 1,
+            borderColor: COLORS.grayText,
+        },
+        programButton: {
+            backgroundColor: COLORS.purple,
+        },
+        textStyle: {
+            color: COLORS.white,
+            textAlign: 'center',
+            fontWeight: '600',
+        },
+    });
+
     return (
-        <Modal animationType="fade" transparent={true} visible={isVisible} onRequestClose={onClose}>
-            <View style={styles.centeredView}>
-                <View style={styles.modalView}>
-                    <Text style={styles.modalTitle}>Acciones para **{targetMember.username}**</Text>
+        <Modal
+            animationType="slide"
+            transparent={true}
+            visible={isVisible}
+            onRequestClose={onClose}
+        >
+            <View style={modalStyles.centeredView}>
+                <View style={modalStyles.modalView}>
+                    <Text style={modalStyles.modalTitle}>
+                        {isLiveNow ? 'Avisar Directo AHORA' : 'Programar Directo/Evento'}
+                    </Text>
 
-                    <TouchableOpacity 
-                        style={[styles.modalButton, { backgroundColor: COLORS.red }]} 
-                        onPress={() => { onClose(); onRemove(); }}
-                    >
-                        <Text style={styles.modalButtonText}>Eliminar Miembro</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity 
-                        style={[styles.modalButton, { backgroundColor: COLORS.purple }]} 
-                        onPress={() => setIsRoleModalVisible(true)}
-                    >
-                        <Text style={styles.modalButtonText}>Cambiar Rol (Actual: {targetMember.role})</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity 
-                        style={[styles.modalButton, { backgroundColor: COLORS.inputBackground, marginTop: 15 }]} 
-                        onPress={onClose}
-                    >
-                        <Text style={[styles.modalButtonText, { color: COLORS.white }]}>Cerrar</Text>
-                    </TouchableOpacity>
-
-                </View>
-                
-                <Modal animationType="slide" transparent={true} visible={isRoleModalVisible} onRequestClose={() => setIsRoleModalVisible(false)}>
-                    <View style={styles.centeredView}>
-                        <View style={styles.modalView}>
-                            <Text style={styles.modalTitle}>Seleccionar Nuevo Rol</Text>
-                            {rolesMenu.map(role => (
-                                <TouchableOpacity 
-                                    key={role}
-                                    style={[styles.modalButton, { backgroundColor: COLORS.purple, marginVertical: 5 }]}
-                                    onPress={() => handleRoleSelect(role)}
-                                >
-                                    <Text style={styles.modalButtonText}>{role}</Text>
-                                </TouchableOpacity>
-                            ))}
-                            <TouchableOpacity 
-                                style={[styles.modalButton, { backgroundColor: COLORS.inputBackground, marginTop: 15 }]} 
-                                onPress={() => setIsRoleModalVisible(false)}
-                            >
-                                <Text style={[styles.modalButtonText, { color: COLORS.white }]}>Cancelar</Text>
-                            </TouchableOpacity>
-                        </View>
+                    <View style={modalStyles.toggleRow}>
+                        <Text style={modalStyles.toggleText}>¿Estás en directo ahora?</Text>
+                        <Switch
+                            trackColor={{ false: COLORS.grayText, true: COLORS.purple }}
+                            thumbColor={COLORS.white}
+                            onValueChange={setIsLiveNow}
+                            value={isLiveNow}
+                        />
                     </View>
-                </Modal>
+
+                    <TextInput
+                        style={modalStyles.input}
+                        placeholder="Título del Stream/Evento (Ej: Ranked con subs)"
+                        placeholderTextColor={COLORS.grayText}
+                        value={streamTitle}
+                        onChangeText={setStreamTitle}
+                    />
+
+                    {!isLiveNow && (
+                        <TouchableOpacity style={modalStyles.dateButton}>
+                            <Ionicons name="calendar-outline" size={20} color={COLORS.purple} />
+                            <Text style={modalStyles.dateButtonText}>Seleccionar Fecha y Hora</Text>
+                        </TouchableOpacity>
+                    )}
+
+                    <View style={modalStyles.buttonRow}>
+                        <TouchableOpacity
+                            style={[modalStyles.button, modalStyles.cancelButton]}
+                            onPress={onClose}
+                        >
+                            <Text style={modalStyles.textStyle}>Cancelar</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[modalStyles.button, modalStyles.programButton]}
+                            onPress={handleAvisar}
+                            disabled={streamTitle.length < 3}
+                        >
+                            <Text style={[modalStyles.textStyle, { fontWeight: '800' }]}>
+                                {isLiveNow ? 'Confirmar Aviso' : 'Programar'}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
             </View>
         </Modal>
     );
 };
 
+const AdminActionModal = ({
+    isVisible,
+    onClose,
+    targetMember,
+    onRemove,
+    onRoleChange
+}) => {
+    const [isRoleModalVisible, setIsRoleModalVisible] = useState(false);
+    const rolesMenu = ["ADMIN", "MODERATOR", "MEMBER"];
+
+    if (!targetMember) return null;
+
+    const handleRoleSelect = (newRole) => {
+        setIsRoleModalVisible(false);
+        onRoleChange(newRole);
+    };
+
+    return (
+        <Modal
+            animationType="slide"
+            transparent={true}
+            visible={isVisible}
+            onRequestClose={onClose}
+        >
+            <View style={styles.centeredView}>
+                <View style={styles.modalView}>
+                    <Text style={styles.modalTitle}>
+                        Acciones para {targetMember.username}
+                    </Text>
+
+                    <TouchableOpacity
+                        style={[styles.modalButton, { backgroundColor: COLORS.purple, marginVertical: 5 }]}
+                        onPress={() => setIsRoleModalVisible(true)}
+                    >
+                        <Text style={styles.modalButtonText}>Cambiar Rol</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.modalButton, { backgroundColor: COLORS.red, marginVertical: 5 }]}
+                        onPress={onRemove}
+                    >
+                        <Text style={styles.modalButtonText}>Eliminar del Grupo</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.modalButton, { backgroundColor: COLORS.inputBackground, marginTop: 15 }]}
+                        onPress={onClose}
+                    >
+                        <Text style={[styles.modalButtonText, { color: COLORS.white }]}>Cancelar</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+
+            <Modal animationType="slide" transparent={true} visible={isRoleModalVisible} onRequestClose={() => setIsRoleModalVisible(false)}>
+                <View style={styles.centeredView}>
+                    <View style={styles.modalView}>
+                        <Text style={styles.modalTitle}>Seleccionar Nuevo Rol</Text>
+                        {rolesMenu.map(role => (
+                            <TouchableOpacity
+                                key={role}
+                                style={[styles.modalButton, { backgroundColor: COLORS.purple, marginVertical: 5 }]}
+                                onPress={() => handleRoleSelect(role)}
+                            >
+                                <Text style={styles.modalButtonText}>{role}</Text>
+                            </TouchableOpacity>
+                        ))}
+                        <TouchableOpacity
+                            style={[styles.modalButton, { backgroundColor: COLORS.inputBackground, marginTop: 15 }]}
+                            onPress={() => setIsRoleModalVisible(false)}
+                        >
+                            <Text style={[styles.modalButtonText, { color: COLORS.white }]}>Cancelar</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+        </Modal>
+    );
+};
+
 const showAlert = (title, message, buttons = []) => {
-  if (Platform.OS === 'web') {
-    if (buttons.length === 2) {
-      const confirm = window.confirm(`${title}\n\n${message}`);
-      if (confirm && buttons[1]?.onPress) buttons[1].onPress();
+    if (Platform.OS === 'web') {
+        if (buttons.length === 2) {
+            const confirm = window.confirm(`${title}\n\n${message}`);
+            if (confirm && buttons[1]?.onPress) buttons[1].onPress();
+        } else {
+            window.alert(`${title}\n\n${message}`);
+            if (buttons[0]?.onPress) buttons[0].onPress();
+        }
     } else {
-      window.alert(`${title}\n\n${message}`);
-      if (buttons[0]?.onPress) buttons[0].onPress();
+        Alert.alert(title, message, buttons);
     }
-  } else {
-    showAlert(title, message, buttons);
-  }
 };
 
 const GroupDetailView = ({ navigation, route }) => {
+    const [posts, setPosts] = useState([]);
+    const [newPostText, setNewPostText] = useState("");
+    const [imageUri, setImageUri] = useState(null);
     const [activeTab, setActiveTab] = useState('Publicaciones');
     const [isAvisarModalVisible, setIsAvisarModalVisible] = useState(false);
-    const [groupData, setGroupData] = useState(null); 
-    const [loading, setLoading] = useState(true); 
-    
-    const [userRole, setUserRole] = useState(null); 
-    const [membersList, setMembersList] = useState([]); 
-    
+    const [groupData, setGroupData] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    const [userRole, setUserRole] = useState(null);
+    const [membersList, setMembersList] = useState([]);
+
     const [isActionModalVisible, setIsActionModalVisible] = useState(false);
-    const [targetMember, setTargetMember] = useState(null); 
+    const [targetMember, setTargetMember] = useState(null);
 
-    const groupId = route.params?.groupData?.id; 
-    const firebaseUid = getAuth().currentUser?.uid; 
+    const groupId = route.params?.groupData?.id;
+    const firebaseUid = getAuth().currentUser?.uid;
 
+    // FUNCIONES FALTANTES - ESTAS SON LAS QUE CAUSABAN EL ERROR
+    const fetchGroupDetail = useCallback(async () => {
+        if (!groupId) {
+            setLoading(false);
+            showAlert("Error", "ID del grupo no proporcionado.");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const response = await fetch(`${API_URL}/${groupId}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Error al cargar el detalle del grupo');
+            }
+
+            const data = await response.json();
+            const mappedDetail = mapApiToGroupDetail(data.group);
+            setGroupData(mappedDetail);
+        } catch (error) {
+            console.error('Error fetching group detail:', error);
+            showAlert('Error de API', error.message || 'Hubo un error al cargar el detalle de la comunidad.');
+            setGroupData(null);
+        } finally {
+            setLoading(false);
+        }
+    }, [groupId]);
+
+    const fetchGroupPosts = useCallback(async () => {
+        if (!groupId) return;
+        
+        try {
+            console.log("=== OBTENIENDO POSTS ===");
+            console.log("URL:", `${API_URL}/${groupId}/posts`);
+            
+            const res = await fetch(`${API_URL}/${groupId}/posts`);
+            const data = await res.json();
+            
+            console.log("Respuesta completa:", JSON.stringify(data, null, 2));
+            console.log("Status:", res.status);
+            
+            if (!res.ok) {
+                console.error("Error fetching posts:", data);
+                return;
+            }
+            
+            if (Array.isArray(data.posts)) {
+                console.log("Número de posts recibidos:", data.posts.length);
+                setPosts(data.posts);
+            }
+        } catch (err) {
+            console.error("Error cargando publicaciones:", err);
+        }
+    }, [groupId]);
+
+    const fetchGroupDetailAndRole = useCallback(async () => {
+        if (!groupId || !firebaseUid) {
+            setLoading(false);
+            if (!groupId) showAlert("Error", "ID del grupo no proporcionado.");
+            return;
+        }
+        setLoading(true);
+        const token = await getFirebaseToken();
+
+        try {
+            const groupResponse = await fetch(`${API_URL}/${groupId}`, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+            });
+
+            if (!groupResponse.ok) {
+                const errorData = await groupResponse.json();
+                throw new Error(errorData.message || 'Error al cargar el detalle del grupo');
+            }
+
+            const data = await groupResponse.json();
+            const mappedDetail = mapApiToGroupDetail(data.group);
+            setGroupData(mappedDetail);
+
+            if (token) {
+                const roleResponse = await fetch(`${MEMBER_API_URL}/${groupId}/role`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                });
+
+                if (roleResponse.ok) {
+                    const roleData = await roleResponse.json();
+                    setUserRole(roleData.role);
+                } else {
+                    console.warn("No se pudo obtener el rol del usuario.");
+                    setUserRole(null);
+                }
+            }
+
+        } catch (error) {
+            console.error('Error fetching group detail or role:', error);
+            showAlert('Error de API', error.message || 'Hubo un error al cargar el detalle de la comunidad.');
+            setGroupData(null);
+            setUserRole(null);
+        } finally {
+            setLoading(false);
+        }
+    }, [groupId, firebaseUid]);
 
     const handleStreamPress = () => {
         if (groupData?.streamLink) {
-            Linking.openURL(groupData.streamLink).catch(err => 
+            Linking.openURL(groupData.streamLink).catch(err =>
                 showAlert("Error", "No se pudo abrir el enlace: " + groupData.streamLink)
             );
         }
@@ -209,42 +472,42 @@ const GroupDetailView = ({ navigation, route }) => {
     const handleSettingsPress = () => {
         navigation.navigate('EditGroupScreen', { groupId: groupData.id, initialData: groupData });
     };
-    
+
     const handleLeaveGroup = async () => {
         showAlert(
             "Confirmar Abandono",
             "¿Estás seguro de que quieres abandonar este grupo? Si eres el creador o el último ADMIN, esto podría no ser posible.",
             [
                 { text: "Cancelar", style: "cancel" },
-                { 
-                    text: "Abandonar", 
-                    style: "destructive", 
+                {
+                    text: "Abandonar",
+                    style: "destructive",
                     onPress: async () => {
-                        console.log("--> Intento de abandonar grupo iniciado."); 
+                        console.log("--> Intento de abandonar grupo iniciado.");
                         const token = await getFirebaseToken();
                         if (!token) {
                             showAlert("Error de Autenticación", "No se pudo obtener el token de autenticación. Inténtalo de nuevo.");
                             return;
                         }
-                        
+
                         try {
                             setLoading(true);
-                            
+
                             const response = await axios.post(`${MEMBER_API_URL}/${groupId}/leave`, {}, {
-                                headers: { 
-                                    'Authorization': `Bearer ${token}` 
+                                headers: {
+                                    'Authorization': `Bearer ${token}`
                                 }
                             });
-                            
+
                             showAlert("Abandono Exitoso", response.data.message || "Has abandonado el grupo correctamente.");
-                            
+
                             setTimeout(() => {
-                                navigation.goBack(); 
-                            }, 500); 
-                            
+                                navigation.goBack();
+                            }, 500);
+
                         } catch (error) {
                             console.error('Error al abandonar el grupo (Cliente):', error.response?.data || error.message);
-                            
+
                             let errorMessage = "Error desconocido al procesar la solicitud.";
                             if (error.response) {
                                 errorMessage = error.response.data?.error || error.response.data?.message || `Error del servidor: ${error.response.status}`;
@@ -253,9 +516,9 @@ const GroupDetailView = ({ navigation, route }) => {
                             } else {
                                 errorMessage = error.message;
                             }
-                                
+
                             showAlert("Error al Salir", errorMessage);
-                            
+
                         } finally {
                             setLoading(false);
                             console.log("--> Intento de abandonar grupo finalizado.");
@@ -271,31 +534,31 @@ const GroupDetailView = ({ navigation, route }) => {
             showAlert("Permiso Denegado", "No puedes modificar al creador del grupo.");
             return;
         }
-        if (member.isCurrentUser) { 
-             showAlert("Permiso Denegado", "No puedes modificar tu propia membresía/rol.");
+        if (member.isCurrentUser) {
+            showAlert("Permiso Denegado", "No puedes modificar tu propia membresía/rol.");
             return;
         }
 
         if (userRole === 'MODERATOR' && (member.role === 'ADMIN' || member.role === 'MODERATOR')) {
-             showAlert("Jerarquía", "Como Moderador, solo puedes modificar miembros con rol 'MEMBER'.");
-             return;
+            showAlert("Jerarquía", "Como Moderador, solo puedes modificar miembros con rol 'MEMBER'.");
+            return;
         }
 
         setTargetMember(member);
         setIsActionModalVisible(true);
     };
-    
+
     const handleRemoveMember = async () => {
         if (!targetMember) return;
-        
+
         showAlert(
             "Confirmar Eliminación",
             `¿Estás seguro de que quieres eliminar a ${targetMember.username} del grupo?`,
             [
                 { text: "Cancelar", style: "cancel" },
-                { 
-                    text: "Eliminar", 
-                    style: "destructive", 
+                {
+                    text: "Eliminar",
+                    style: "destructive",
                     onPress: async () => {
                         const token = await getFirebaseToken();
                         try {
@@ -303,9 +566,9 @@ const GroupDetailView = ({ navigation, route }) => {
                             const response = await axios.delete(`${MEMBER_API_URL}/${groupId}/members/${targetMember.id}`, {
                                 headers: { 'Authorization': `Bearer ${token}` }
                             });
-                            
+
                             showAlert("Miembro Eliminado", response.data.message || `${targetMember.username} ha sido eliminado del grupo.`);
-                            fetchMembersList(); 
+                            fetchMembersList();
                         } catch (error) {
                             let errorMessage = "Error desconocido al procesar la solicitud.";
                             if (error.response) {
@@ -315,7 +578,7 @@ const GroupDetailView = ({ navigation, route }) => {
                             } else {
                                 errorMessage = error.message;
                             }
-                            
+
                             showAlert("Error de Eliminación", errorMessage);
                             console.error('Error al eliminar miembro:', error.response?.data || error.message);
                         } finally {
@@ -327,19 +590,19 @@ const GroupDetailView = ({ navigation, route }) => {
             ]
         );
     };
-    
+
     const handleUpdateRole = async (newRole) => {
         if (!targetMember || !newRole) return;
-        
+
         const token = await getFirebaseToken();
         try {
             setLoading(true);
             const response = await axios.put(`${MEMBER_API_URL}/${groupId}/members/${targetMember.id}/role`, { newRole }, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            
+
             showAlert("Rol Actualizado", response.data.message || `El rol de ${targetMember.username} se ha actualizado a **${newRole}**.`);
-            fetchMembersList(); 
+            fetchMembersList();
         } catch (error) {
             const errorMessage = error.response?.data?.error || error.response?.data?.message || "Hubo un error al cambiar el rol.";
             showAlert("Error al Actualizar Rol", errorMessage);
@@ -351,67 +614,16 @@ const GroupDetailView = ({ navigation, route }) => {
         }
     };
 
-    const fetchGroupDetailAndRole = useCallback(async () => {
-        if (!groupId || !firebaseUid) {
-            setLoading(false);
-            if (!groupId) showAlert("Error", "ID del grupo no proporcionado.");
+    const fetchMembersList = useCallback(async () => {
+        if (!groupId || !firebaseUid) return;
+
+        const token = await getFirebaseToken();
+        if (!token) {
+            console.warn("Token no disponible, no se puede cargar la lista de miembros.");
+            setMembersList([]);
             return;
         }
 
-        setLoading(true);
-        const token = await getFirebaseToken(); 
-
-        try {
-            const groupResponse = await fetch(`${API_URL}/${groupId}`, {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-            });
-
-            if (!groupResponse.ok) {
-                const errorData = await groupResponse.json();
-                throw new Error(errorData.message || 'Error al cargar el detalle del grupo');
-            }
-
-            const data = await groupResponse.json();
-            const mappedDetail = mapApiToGroupDetail(data.group); 
-            setGroupData(mappedDetail);
-            
-            const roleResponse = await fetch(`${MEMBER_API_URL}/${groupId}/role`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`, 
-                },
-            });
-            
-            if (roleResponse.ok) {
-                const roleData = await roleResponse.json();
-                setUserRole(roleData.role); 
-            } else {
-                 console.warn("No se pudo obtener el rol del usuario. Asumiendo no-miembro o error.");
-                 setUserRole(null);
-            }
-
-        } catch (error) {
-            console.error('Error fetching group detail or role:', error);
-            showAlert('Error de API', error.message || 'Hubo un error al cargar el detalle de la comunidad.');
-            setGroupData(null);
-            setUserRole(null);
-        } finally {
-            setLoading(false);
-        }
-    }, [groupId, firebaseUid]);
-
-    const fetchMembersList = useCallback(async () => {
-        if (!groupId || !firebaseUid) return;
-        
-        const token = await getFirebaseToken();
-        if (!token) {
-             console.warn("Token no disponible, no se puede cargar la lista de miembros.");
-             setMembersList([]); 
-             return;
-        }
-        
         try {
             const response = await fetch(`${MEMBER_API_URL}/${groupId}/members`, {
                 method: 'GET',
@@ -420,96 +632,236 @@ const GroupDetailView = ({ navigation, route }) => {
                     'Authorization': `Bearer ${token}`,
                 },
             });
-
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.message || 'Error al cargar la lista de miembros');
             }
-            
+
             const data = await response.json();
-            
+
             const mappedMembers = data.map(m => ({
-                id: m.user.ID_USER, 
+                id: m.user.ID_USER,
                 username: m.user.USERNAME_DSC,
                 role: m.MEMBER_ROLE_DSC,
-                avatarUri: m.user.PROFILE_PIC 
-                    ? m.user.PROFILE_PIC.startsWith(BASE_URL) 
-                        ? m.user.PROFILE_PIC 
-                        : `${BASE_URL}${m.user.PROFILE_PIC.replace('src/public', '')}` 
-                    : `https://picsum.photos/40/40?random=${m.user.ID_USER}`, 
-                isOnline: false, 
-                isCurrentUser: m.user.FIREBASE_UID === firebaseUid, 
+                avatarUri: m.user.PROFILE_PIC
+                    ? m.user.PROFILE_PIC.startsWith(BASE_URL)
+                        ? m.user.PROFILE_PIC
+                        : `${BASE_URL}${m.user.PROFILE_PIC.replace('src/public', '')}`
+                    : `https://picsum.photos/40/40?random=${m.user.ID_USER}`,
+                isOnline: false,
+                isCurrentUser: m.user.FIREBASE_UID === firebaseUid,
             }));
-            
+
             setMembersList(mappedMembers);
 
         } catch (error) {
-             console.error('Error fetching members list:', error);
-             setMembersList([]); 
+            console.error('Error fetching members list:', error);
+            setMembersList([]);
         }
     }, [groupId, firebaseUid]);
 
     useFocusEffect(
         useCallback(() => {
             fetchGroupDetailAndRole();
-            return () => {}; 
-        }, [fetchGroupDetailAndRole])
+            fetchGroupPosts();
+            return () => { };
+        }, [fetchGroupDetailAndRole, fetchGroupPosts])
     );
-    
+
+    const constructImageUri = (imageObj) => {
+        if (!imageObj) return null;
+
+        const possibleFields = [
+            'IMG_URL', 'IMG_URL_DSC', 'IMAGE_URL', 'path', 'filename',
+            'image_path', 'image_url', 'url', 'file_path', 'full_path', 'uri'
+        ];
+        for (const field of possibleFields) {
+            if (imageObj[field]) {
+                let url = imageObj[field];
+                if (!url.startsWith('http')) {
+                    if (url.startsWith('/')) {
+                        url = `${BASE_URL}${url}`;
+                    } else {
+                        url = `${BASE_URL}/${url}`;
+                    }
+                }
+                return url;
+            }
+        }
+
+        for (const [key, value] of Object.entries(imageObj)) {
+            if (typeof value === 'string' &&
+                (value.includes('image') || value.includes('img') ||
+                    value.includes('.jpg') || value.includes('.png') || value.includes('.jpeg') ||
+                    value.includes('/images/'))) {
+                let url = value;
+                if (!url.startsWith('http')) {
+                    if (url.startsWith('/')) {
+                        url = `${BASE_URL}${url}`;
+                    } else {
+                        url = `${BASE_URL}/${url}`;
+                    }
+                }
+                return url;
+            }
+        }
+        return null;
+    };
+
     useEffect(() => {
         if (activeTab === 'Miembros') {
             fetchMembersList();
         }
     }, [activeTab, fetchMembersList]);
 
-
     const renderContent = () => {
-        if (!groupData) return null; 
-        
+        if (!groupData) return null;
         if (activeTab === 'Publicaciones') {
             return (
-                 <View>
+                <View>
                     <View style={styles.createPostContainer}>
-                        <Text style={styles.userAvatarInitial}>TU</Text> 
+                        <Text style={styles.userAvatarInitial}>TU</Text>
                         <TextInput
                             placeholder="¿Qué quieres compartir con el grupo?"
                             placeholderTextColor={COLORS.grayText}
                             style={styles.postInput}
                             multiline
+                            value={newPostText}
+                            onChangeText={setNewPostText}
                         />
                         <View style={styles.postActions}>
-                            <TouchableOpacity style={styles.imageButton}>
+                            <TouchableOpacity style={styles.imageButton} onPress={async () => {
+                                const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                                if (!permission.granted) {
+                                    Alert.alert("Permiso denegado", "Debes permitir acceso a la galería para subir imágenes.");
+                                    return;
+                                }
+                                const result = await ImagePicker.launchImageLibraryAsync({
+                                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                                    allowsEditing: true,
+                                    quality: 0.8,
+                                });
+                                if (!result.canceled) setImageUri(result.assets[0].uri);
+                            }}>
                                 <Ionicons name="image-outline" size={24} color={COLORS.grayText} />
                                 <Text style={styles.imageButtonText}>Imagen</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.postButton}>
+                            <TouchableOpacity style={styles.postButton} onPress={async () => {
+                                if (!newPostText.trim()) return Alert.alert("Escribe algo para publicar");
+                                try {
+                                    const token = await getFirebaseToken();
+                                    if (!token) return Alert.alert("No autenticado", "Inicia sesión para publicar.");
+                                    const formData = new FormData();
+                                    formData.append("POST_CONTENT_DSC", newPostText);
+
+                                    if (imageUri) {
+                                        const response = await fetch(imageUri);
+                                        const blob = await response.blob();
+                                        const filename = `photo_${Date.now()}.jpg`;
+                                        formData.append("image", blob, filename);
+                                    }
+
+                                    const res = await fetch(`${API_URL}/${groupId}/posts`, {
+                                        method: 'POST',
+                                        headers: {
+                                            "Authorization": `Bearer ${token}`,
+                                        },
+                                        body: formData,
+                                    });
+
+                                    const data = await res.json();
+
+                                    if (!res.ok) {
+                                        throw new Error(data.message || "Error creando publicación");
+                                    }
+                                    if (data.post) {
+                                        setPosts(prev => [data.post, ...prev]);
+                                        setNewPostText("");
+                                        setImageUri(null);
+                                        // Refrescar posts después de crear uno nuevo
+                                        setTimeout(() => {
+                                            fetchGroupPosts();
+                                        }, 2000);
+                                    }
+                                } catch (err) {
+                                    console.error("Error creating post:", err);
+                                    Alert.alert("Error al publicar", err.message || "Revisa la consola");
+                                }
+                            }}>
                                 <Text style={styles.postButtonText}>Publicar</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
+                    {imageUri && (
+                        <View style={{ position: 'relative', marginBottom: 10 }}>
+                            <Image source={{ uri: imageUri }} style={{ width: '100%', height: 200, borderRadius: 10 }} />
+                            <TouchableOpacity
+                                style={{
+                                    position: 'absolute',
+                                    top: 10,
+                                    right: 10,
+                                    backgroundColor: 'rgba(0,0,0,0.6)',
+                                    borderRadius: 15,
+                                    width: 30,
+                                    height: 30,
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                }}
+                                onPress={() => setImageUri(null)}
+                            >
+                                <Ionicons name="close" size={20} color={COLORS.white} />
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                    {posts.length > 0 ? (
+                        posts.map(post => {
+                            let imageUri = null;
+                            if (post.images && Array.isArray(post.images) && post.images.length > 0) {
+                                imageUri = constructImageUri(post.images[0]);
+                            } else if (post.images && typeof post.images === 'object' && !Array.isArray(post.images)) {
+                                imageUri = constructImageUri(post.images);
+                            }
 
-                    {POSTS_DATA.map(post => (
-                        <GroupPostItem key={post.id} post={post} onPress={() => {}} />
-                    ))}
+                            return (
+                                <GroupPostItem
+                                    key={post.ID_GROUP_POST || post.id}
+                                    post={{
+                                        id: post.ID_GROUP_POST || post.id,
+                                        username: post.user?.USERNAME_DSC || post.username || "Miembro",
+                                        time: post.POST_DATE ? new Date(post.POST_DATE).toLocaleString() : (post.time || ''),
+                                        content: post.POST_CONTENT_DSC || post.content,
+                                        imageUri: imageUri,
+                                        userAvatarUri: post.user?.PROFILE_PIC ? `${BASE_URL}${post.user.PROFILE_PIC}` : `https://picsum.photos/50/50?random=${post.ID_GROUP_POST || post.id}`,
+                                        likes: post.likesCount || post.likes || 0,
+                                        comments: post.commentsCount || post.comments || 0,
+                                    }}
+                                    onPress={() => { }}
+                                />
+                            );
+                        })
+                    ) : (
+                        <Text style={{ color: COLORS.white, textAlign: 'center', padding: 20 }}>
+                            No hay publicaciones en este grupo
+                        </Text>
+                    )}
                 </View>
             );
         }
-
         if (activeTab === 'Miembros') {
             return (
                 <View style={styles.membersListContainer}>
                     <Text style={styles.membersCountText}>Miembros del grupo</Text>
                     <Text style={styles.membersCountSubText}>{groupData.membersTotal} miembros • {groupData.membersOnline} en línea</Text>
-                    
+
                     {membersList.length > 0 ? (
                         membersList.map(member => (
-                            <MemberListingRow 
-                                key={member.id} 
-                                member={member} 
-                                onPressProfile={() => showAlert("Ver Perfil", `Navegando al perfil de ${member.username}`)} 
-                                userRole={userRole} 
-                                onAdminAction={handleMemberAction} 
-                                isCurrentUser={member.isCurrentUser} 
+                            <MemberListingRow
+                                key={member.id}
+                                member={member}
+                                onPressProfile={() => showAlert("Ver Perfil", `Navegando al perfil de ${member.username}`)}
+                                userRole={userRole}
+                                onAdminAction={handleMemberAction}
+                                isCurrentUser={member.isCurrentUser}
                             />
                         ))
                     ) : (
@@ -520,14 +872,13 @@ const GroupDetailView = ({ navigation, route }) => {
                 </View>
             );
         }
-
         if (activeTab === 'Eventos') {
-             return (
+            return (
                 <View style={styles.placeholderContainer}>
                     <Text style={styles.placeholderText}>Aquí se mostrarán los Eventos Programados del Grupo.</Text>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         style={styles.eventActionButton}
-                        onPress={() => navigation.navigate('ProgramarEvento')} 
+                        onPress={() => navigation.navigate('ProgramarEvento')}
                     >
                         <Text style={styles.eventActionButtonText}>Programar Evento</Text>
                     </TouchableOpacity>
@@ -537,7 +888,6 @@ const GroupDetailView = ({ navigation, route }) => {
         return null;
     };
 
-
     if (loading) {
         return (
             <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -546,9 +896,9 @@ const GroupDetailView = ({ navigation, route }) => {
             </SafeAreaView>
         );
     }
-    
+
     if (!groupData) {
-         return (
+        return (
             <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
                 <Ionicons name="alert-circle-outline" size={50} color={COLORS.red} />
                 <Text style={{ color: COLORS.white, marginTop: 20, fontSize: 18, textAlign: 'center' }}>
@@ -557,8 +907,8 @@ const GroupDetailView = ({ navigation, route }) => {
                 <Text style={{ color: COLORS.grayText, marginTop: 10, fontSize: 14, textAlign: 'center' }}>
                     Verifica tu conexión.
                 </Text>
-                <TouchableOpacity 
-                    onPress={() => navigation.goBack()} 
+                <TouchableOpacity
+                    onPress={() => navigation.goBack()}
                     style={{ marginTop: 30, paddingVertical: 10, paddingHorizontal: 20, backgroundColor: COLORS.purple, borderRadius: 8 }}
                 >
                     <Text style={{ color: COLORS.white, fontWeight: '700' }}>Volver</Text>
@@ -569,13 +919,12 @@ const GroupDetailView = ({ navigation, route }) => {
 
     return (
         <SafeAreaView style={styles.container}>
-    
-            <AvisarDirectoModal 
+            <AvisarDirectoModal
                 isVisible={isAvisarModalVisible}
                 onClose={() => setIsAvisarModalVisible(false)}
             />
-            
-            <AdminActionModal 
+
+            <AdminActionModal
                 isVisible={isActionModalVisible}
                 onClose={() => setIsActionModalVisible(false)}
                 targetMember={targetMember}
@@ -584,18 +933,12 @@ const GroupDetailView = ({ navigation, route }) => {
             />
 
             <ScrollView showsVerticalScrollIndicator={false}>
-
                 <View style={styles.headerContainer}>
-           
                     <Image source={{ uri: groupData.bannerUri }} style={styles.bannerImage} />
-                    
-                    
                     <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
                         <Ionicons name="arrow-back" size={24} color={COLORS.white} />
                     </TouchableOpacity>
-                    
                     <View style={styles.groupInfoBox}>
-                        
                         <View style={styles.groupHeaderRow}>
                             <Image source={{ uri: groupData.profilePicUri }} style={styles.profileImage} />
                             <View style={styles.titleContainer}>
@@ -603,21 +946,15 @@ const GroupDetailView = ({ navigation, route }) => {
                                 <Text style={styles.groupSubtitleText}>{groupData.communityType}</Text>
                             </View>
                         </View>
-                        
                         <Text style={styles.groupDescriptionText}>{groupData.subtitle}</Text>
-                        
                         <View style={styles.groupContentRow}>
-                    
                             <View style={styles.statsAndActions}>
-                                
                                 <View style={styles.statsRow}>
                                     <Text style={styles.statText}>
                                         {groupData.membersTotal} miembros • {groupData.membersOnline} en línea
                                     </Text>
                                 </View>
-
                                 <View style={styles.actionButtonsRow}>
-                                        
                                     {groupData.isLive && groupData.isStreamer && (
                                         <View style={styles.liveBadge}>
                                             <Text style={styles.liveBadgeText}>
@@ -627,19 +964,19 @@ const GroupDetailView = ({ navigation, route }) => {
                                     )}
 
                                     {groupData.isStreamer && groupData.streamLink && (
-                                        <TouchableOpacity 
-                                            style={styles.streamActionButton} 
-                                            onPress={handleStreamPress} 
+                                        <TouchableOpacity
+                                            style={styles.streamActionButton}
+                                            onPress={handleStreamPress}
                                         >
                                             <Ionicons name="logo-twitch" size={20} color={COLORS.white} />
                                             <Text style={styles.actionText}>Ver Stream</Text>
                                         </TouchableOpacity>
                                     )}
-                                    
+
                                     {userRole && (
-                                        <TouchableOpacity 
+                                        <TouchableOpacity
                                             style={[styles.actionIcon, { backgroundColor: COLORS.red }]}
-                                            onPress={handleLeaveGroup} 
+                                            onPress={handleLeaveGroup}
                                         >
                                             <Ionicons name="exit-outline" size={20} color={COLORS.white} />
                                             <Text style={styles.actionText}>Abandonar</Text>
@@ -654,19 +991,19 @@ const GroupDetailView = ({ navigation, route }) => {
                                         <Ionicons name="share-social-outline" size={20} color={COLORS.white} />
                                         <Text style={styles.actionText}>Compartir</Text>
                                     </TouchableOpacity>
-                                    
+
                                     {userRole === 'ADMIN' && (
-                                        <TouchableOpacity 
+                                        <TouchableOpacity
                                             style={styles.actionIcon}
-                                            onPress={handleSettingsPress} 
+                                            onPress={handleSettingsPress}
                                         >
                                             <Ionicons name="settings-outline" size={20} color={COLORS.white} />
                                             <Text style={styles.actionText}>Configuración</Text>
                                         </TouchableOpacity>
                                     )}
-                                    
+
                                     {userRole === 'ADMIN' && groupData.isStreamer && (
-                                        <TouchableOpacity 
+                                        <TouchableOpacity
                                             style={styles.actionIcon}
                                             onPress={() => setIsAvisarModalVisible(true)}
                                         >
@@ -674,13 +1011,11 @@ const GroupDetailView = ({ navigation, route }) => {
                                             <Text style={styles.actionText}>Avisar Directo</Text>
                                         </TouchableOpacity>
                                     )}
-
                                 </View>
                             </View>
                         </View>
                     </View>
                 </View>
-            
                 <View style={styles.tabContainer}>
                     {['Publicaciones', 'Miembros', 'Eventos'].map(tab => (
                         <TouchableOpacity
@@ -692,11 +1027,9 @@ const GroupDetailView = ({ navigation, route }) => {
                         </TouchableOpacity>
                     ))}
                 </View>
-
                 <View style={styles.contentArea}>
                     {renderContent()}
                 </View>
-
             </ScrollView>
         </SafeAreaView>
     );
@@ -721,8 +1054,8 @@ const styles = StyleSheet.create({
     actionButtonsRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        flexWrap: 'wrap', 
-        gap: 8, 
+        flexWrap: 'wrap',
+        gap: 8,
         marginBottom: 10,
     },
     liveBadge: { backgroundColor: COLORS.red, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginRight: 5, },
@@ -786,6 +1119,5 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
 });
-
 
 export default GroupDetailView;
