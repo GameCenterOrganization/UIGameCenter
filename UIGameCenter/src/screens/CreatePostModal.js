@@ -17,7 +17,7 @@ import { getAuth } from 'firebase/auth';
 import COLORS from '../constants/Colors';
 
 const { width } = Dimensions.get('window');
-const API_URL = 'http://192.168.0.9:8080/api/post';
+const API_URL = 'http://192.168.0.6:8080/api/post';
 const MOCK_GAMES = ['Valorant', 'League of Legends', 'Dota 2', 'Apex Legends', 'Counter-Strike 2'];
 const MAX_IMAGES = 5;
 const MAX_FILE_SIZE_MB = 10;
