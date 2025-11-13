@@ -19,10 +19,11 @@ import COLORS from '../constants/Colors';
 import Header from '../components/Header';
 import { getAuth } from 'firebase/auth';
 import GroupDiscoveryScreen from './GroupDiscoveryScreen';
+import { BASE_URL } from '@env';
 
 const { width } = Dimensions.get('window');
 const FILTER_OPTIONS = ['Todos', 'Más Recientes', 'Más Populares', 'Más Comentados', 'Sólo Tendencias'];
-const API_URL = "http://192.168.0.6:8080/api/post";
+const API_URL = `${BASE_URL}/api/post`;
 
 const CommunityScreen = React.memo(({ navigation }) => {
   const [filterVisible, setFilterVisible] = useState(false);

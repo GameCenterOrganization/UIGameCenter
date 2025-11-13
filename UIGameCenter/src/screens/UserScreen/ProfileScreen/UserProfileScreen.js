@@ -19,11 +19,11 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebaseConfig";
 import { styles } from "./ProfileStyle";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { BASE_URL } from '@env';
 
-const BACKEND_BASE = "http://192.168.0.6:8080";
-const PROFILE_GET = `${BACKEND_BASE}/api/users/profile`;
-const PROFILE_UPDATE = `${BACKEND_BASE}/api/users/profile/update`;
-const PROFILE_UPLOAD_PIC = `${BACKEND_BASE}/api/users/profile/upload-photo`;
+const PROFILE_GET = `${BASE_URL}/api/users/profile`;
+const PROFILE_UPDATE = `${BASE_URL}/api/users/profile/update`;
+const PROFILE_UPLOAD_PIC = `${BASE_URL}/api/users/profile/upload-photo`;
 
 export default function UserProfileScreen({ navigation }) {
   const { width } = useWindowDimensions();

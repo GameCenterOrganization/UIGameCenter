@@ -13,16 +13,8 @@ import COLORS from '../constants/Colors';
 import GroupPostItem from '../components/GroupPostItem'; 
 import MemberListingRow from '../components/MemberListingRow'; 
 import { getAuth } from 'firebase/auth'; 
+import { BASE_URL } from '@env';
 
-const getBaseUrl = () => {
-    if (Platform.OS === 'web') {
-        return "http://192.168.0.6:8080";
-    } else {
-        return "http://192.168.0.6:8080";
-    }
-};
-
-const BASE_URL = getBaseUrl();
 const API_URL = `${BASE_URL}/api/group`;
 const MEMBER_API_URL = `${BASE_URL}/api/group`;
 

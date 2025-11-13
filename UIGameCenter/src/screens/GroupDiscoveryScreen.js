@@ -4,8 +4,8 @@ import COLORS from '../constants/Colors';
 import GroupCardComponent from '../components/GroupCardComponent';
 import { Ionicons } from '@expo/vector-icons';
 import { getAuth } from 'firebase/auth'; 
+import { BASE_URL } from '@env';
 
-const BASE_URL = "http://192.168.0.6:8080"; 
 const API_URL = `${BASE_URL}/api/group`;
 
 const getFirebaseToken = async () => {
@@ -126,31 +126,13 @@ const GroupDiscoveryScreen = ({ navigation }) => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <ScrollView contentContainerStyle={styles.scrollContent}>
- 
-                <View style={styles.headerContainer}>
-                    <Text style={styles.mainTitle}>Grupos y Comunidades</Text>
-                    <Text style={styles.subtitle}>Únete a grupos de juegos y comunidades de streamers</Text>
-                </View>
-
-                <View style={styles.actionButtonsContainer}>
-                    <TouchableOpacity
-                        style={[styles.actionButton, styles.createGroupButton]}
-                        onPress={() => navigation.navigate('CreateGroup', {
-                            onGroupCreated: handleGroupCreated 
-                        })} 
-                    >
-                        <Text style={styles.actionButtonText}>Crear Grupo</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={[styles.actionButton, styles.scheduleEventButton]}
-                        onPress={() => navigation.navigate('CreateEvent')} 
-                    >
-                        <Text style={styles.actionButtonText}>Programar Evento</Text>
-                    </TouchableOpacity>
-                </View>
-
+            <ScrollView 
+                contentContainerStyle={styles.scrollContent}
+                // 🔑 PROPIEDAD PARA EL STICKY HEADER
+                stickyHeaderIndices={[0]} 
+            >
+                
+                {/* 🔑 1. BARRA DE TOGGLE (STICKY) - DEBE SER EL PRIMER ELEMENTO */}
                 <View style={styles.toggleBarContainer}>
                     <TouchableOpacity
                         style={[styles.toggleButton, activeType === 'Juegos' && styles.activeToggleButton]}
@@ -167,30 +149,58 @@ const GroupDiscoveryScreen = ({ navigation }) => {
                     </TouchableOpacity>
                 </View>
 
-                {loading ? (
-                    <ActivityIndicator size="large" color={COLORS.purple} style={styles.loader} />
-                ) : (
-                    <View style={styles.gridContainer}>
-                        {currentGroups.map(group => (
-                            <GroupCardComponent 
-                                key={group.id} 
-                                group={group} 
-                                onPress={() => navigateToGroupDetail(group)} 
-                                onJoinSuccess={handleJoinSuccess} 
-                                navigation={navigation} 
-                            />
-                        ))}
-                           {currentGroups.length === 0 && (
-                               <Text style={styles.noDataText}>No hay grupos disponibles en esta categoría.</Text>
-                           )}
+                {/* 🔑 2. CONTENIDO SCROLLEABLE (HEADER Y GRID) */}
+                <View>
+                    <View style={styles.headerContainer}>
+                        <Text style={styles.mainTitle}>Grupos y Comunidades</Text>
+                        <Text style={styles.subtitle}>Únete a grupos de juegos y comunidades de streamers</Text>
+                        
+                        {/* 🔑 BOTONES DE ACCIÓN (NO-ABSOLUTOS) */}
+                        <View style={styles.actionButtonsContainer}>
+                            <TouchableOpacity
+                                style={[styles.actionButton, styles.createGroupButton]}
+                                onPress={() => navigation.navigate('CreateGroup', {
+                                    onGroupCreated: handleGroupCreated 
+                                })} 
+                            >
+                                <Text style={styles.actionButtonText}>Crear Grupo</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[styles.actionButton, styles.scheduleEventButton]}
+                                onPress={() => navigation.navigate('CreateEvent')} 
+                            >
+                                <Text style={styles.actionButtonText}>Programar Evento</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                )}
+
+                    {loading ? (
+                        <ActivityIndicator size="large" color={COLORS.purple} style={styles.loader} />
+                    ) : (
+                        <View style={styles.gridContainer}>
+                            {currentGroups.map(group => (
+                                <GroupCardComponent 
+                                    key={group.id} 
+                                    group={group} 
+                                    onPress={() => navigateToGroupDetail(group)} 
+                                    onJoinSuccess={handleJoinSuccess} 
+                                    navigation={navigation} 
+                                />
+                            ))}
+                            {currentGroups.length === 0 && (
+                                <Text style={styles.noDataText}>No hay grupos disponibles en esta categoría.</Text>
+                            )}
+                        </View>
+                    )}
+                </View>
                 
             </ScrollView>
         </SafeAreaView>
     );
 };
 
+// --- Estilos Actualizados ---
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: COLORS.darkBackground },
     scrollContent: { paddingHorizontal: 14, paddingBottom: 20 },
@@ -207,37 +217,49 @@ const styles = StyleSheet.create({
         color: COLORS.grayText,
         fontSize: 14,
         marginTop: 4,
-        marginBottom: 15,
+        // marginBottom: 15 se ha movido a actionButtonsContainer como marginTop
     },
     
+    // 🔑 ESTILOS DE BOTONES DE ACCIÓN ACTUALIZADOS (NO ABSOLUTOS)
     actionButtonsContainer: {
-        position: 'absolute',
-        top: 10,
-        right: 14,
         flexDirection: 'row',
-        zIndex: 1,
+        justifyContent: 'space-between',
+        marginBottom: 20,
+        marginTop: 10, 
+        // Se eliminó position: 'absolute'
     },
     actionButton: {
-        paddingVertical: 8,
-        paddingHorizontal: 12,
+        flex: 1, // Permite que los botones compartan el espacio
+        paddingVertical: 10,
+        paddingHorizontal: 5,
         borderRadius: 8,
-        marginLeft: 8,
+        marginHorizontal: 4,
         backgroundColor: COLORS.purple,
+        alignItems: 'center',
     },
     actionButtonText: {
         color: COLORS.white,
         fontWeight: '700',
         fontSize: 13,
+        textAlign: 'center',
     },
-    createGroupButton: {},
-    scheduleEventButton: {},
+    createGroupButton: { marginLeft: 0, marginRight: 4 },
+    scheduleEventButton: { marginLeft: 4, marginRight: 0 },
 
+    // 🔑 ESTILOS DE TOGGLE BAR ACTUALIZADOS (PARA STICKY)
     toggleBarContainer: {
         flexDirection: 'row',
-        backgroundColor: COLORS.inputBackground, 
+        backgroundColor: COLORS.darkBackground, // Esencial para cubrir el contenido al ser sticky
         borderRadius: 10,
         padding: 4,
         marginBottom: 20,
+        
+        // Ajustes para que la barra ocupe el ancho completo a pesar del padding del ScrollView
+        marginHorizontal: -14, 
+        paddingHorizontal: 18, 
+        paddingTop: 8,
+        
+        zIndex: 10, 
     },
     toggleButton: {
         flex: 1,

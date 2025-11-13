@@ -14,15 +14,14 @@ import { Ionicons } from '@expo/vector-icons';
 
 const Header = ({ activeTab = 'Búsqueda', searchText, onSearchChange, onClearSearch }) => {
   const navigation = useNavigation();
-  const { logout, currentUser } = useAuth();
+  const { logout, currentUser } = useAuth(); 
   const [localSearchText, setLocalSearchText] = useState(searchText || '');
   const [menuVisible, setMenuVisible] = useState(false);
   const { width } = useWindowDimensions();
-  const isLargeScreen = width > 800;
+  const isLargeScreen = width > 800; 
 
   const tabs = [
     { id: 'search', name: 'Búsqueda' },
-    { id: 'comparador', name: 'Comparador' },
     { id: 'marketplace', name: 'Marketplace' },
     { id: 'comunidad', name: 'Comunidad' },
   ];
@@ -34,19 +33,24 @@ const Header = ({ activeTab = 'Búsqueda', searchText, onSearchChange, onClearSe
   };
 
   const handleAccountPress = () => {
+    setMenuVisible(false); 
     if (!currentUser) navigation.navigate('Login');
     else navigation.navigate('Profile');
   };
 
   const handleLogout = async () => {
+    setMenuVisible(false); 
     try {
       await logout();
       navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-    } catch {}
+    } catch (e) {
+      console.error("Error al cerrar sesión:", e);
+    }
   };
 
   return (
     <View style={[styles.header, isLargeScreen ? styles.headerLarge : styles.headerMobile]}>
+      
       <View style={styles.leftSection}>
         {!isLargeScreen && (
           <TouchableOpacity onPress={() => setMenuVisible(true)} style={styles.menuButton}>
@@ -73,30 +77,33 @@ const Header = ({ activeTab = 'Búsqueda', searchText, onSearchChange, onClearSe
       )}
 
       <View style={styles.headerRight}>
-        <View style={styles.searchContainer}>
-          <TextInput
-            style={[styles.searchInput, isLargeScreen ? styles.searchLarge : styles.searchSmall]}
-            placeholder="Buscar juegos..."
-            placeholderTextColor="#888"
-            value={localSearchText}
-            onChangeText={(text) => {
-              setLocalSearchText(text);
-              onSearchChange && onSearchChange(text);
-            }}
-          />
-          {localSearchText.length > 0 && (
-            <TouchableOpacity
-              style={styles.clearButton}
-              onPress={() => {
-                setLocalSearchText('');
-                onClearSearch && onClearSearch();
+        
+        {isLargeScreen && (
+          <View style={styles.searchContainer}>
+            <TextInput
+              style={[styles.searchInput, styles.searchLarge]}
+              placeholder="Buscar juegos..."
+              placeholderTextColor="#888"
+              value={localSearchText}
+              onChangeText={(text) => {
+                setLocalSearchText(text);
+                onSearchChange && onSearchChange(text);
               }}
-            >
-              <Text style={styles.clearButtonText}>✕</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
+            />
+            {localSearchText.length > 0 && (
+              <TouchableOpacity
+                style={styles.clearButton}
+                onPress={() => {
+                  setLocalSearchText('');
+                  onClearSearch && onClearSearch();
+                }}
+              >
+                <Text style={styles.clearButtonText}>✕</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+        
         <TouchableOpacity style={styles.accountButton} onPress={handleAccountPress}>
           <Text style={styles.accountText}>Mi Cuenta</Text>
         </TouchableOpacity>
@@ -148,7 +155,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingTop: 40,
   },
+
   leftSection: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -158,10 +167,11 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   logo: {
-    color: '#8b5cf6',
+    color: '#8b5cf6', 
     fontSize: 20,
     fontWeight: 'bold',
   },
+
   headerTabs: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -186,13 +196,15 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
   },
+
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
+  
   searchContainer: {
     position: 'relative',
+    marginRight: 8, 
   },
   searchInput: {
     backgroundColor: '#2a2a3e',
@@ -205,10 +217,6 @@ const styles = StyleSheet.create({
     width: 180,
     fontSize: 13,
   },
-  searchSmall: {
-    width: 130,
-    fontSize: 12,
-  },
   clearButton: {
     position: 'absolute',
     right: 10,
@@ -218,8 +226,10 @@ const styles = StyleSheet.create({
     color: '#bbb',
     fontSize: 13,
   },
+  
   accountButton: {
-    paddingHorizontal: 6,
+    paddingHorizontal: 0, 
+    marginHorizontal: 4, 
   },
   accountText: {
     color: 'white',
@@ -230,27 +240,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
+    marginLeft: 8, 
   },
   logoutText: {
     color: 'white',
     fontSize: 13,
     fontWeight: 'bold',
   },
+
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-start',
-    paddingTop: 70,
+    paddingTop: 60, 
   },
   modalContent: {
     backgroundColor: '#1a1c2c',
     marginHorizontal: 30,
     borderRadius: 10,
     paddingVertical: 10,
+    alignSelf: 'flex-start', 
+    minWidth: 150,
   },
   modalItem: {
     paddingVertical: 14,
-    alignItems: 'center',
+    paddingHorizontal: 20,
+    alignItems: 'flex-start',
   },
   modalText: {
     color: 'white',
