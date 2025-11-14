@@ -1,12 +1,29 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import COLORS from '../constants/Colors';
 import axios from 'axios';
 import { getAuth } from 'firebase/auth';
 import { BASE_URL } from '@env';
 
+import { showMessage } from "react-native-flash-message";
+
 const JOIN_API_URL = `${BASE_URL}/api/group`;
+
+const showAlert = (title, message) => {
+  showMessage({
+    message: title,
+    description: message,
+    type: "default",
+    backgroundColor: COLORS.darkerBackground, 
+    color: COLORS.white,
+    textStyle: { fontWeight: 'bold' },
+    titleStyle: { fontSize: 16, fontWeight: '800' },
+    duration: 3500,
+    icon: 'danger',
+    style: { paddingTop: 40 },
+  });
+};
 
 const getFirebaseToken = async () => {
     try {
@@ -26,15 +43,15 @@ const GroupCardComponent = ({ group, onPress, onJoinSuccess }) => {
 
     const handleJoinGroup = async () => {
         try {
-            const token = await getFirebaseToken(); 
+            const token = await getFirebaseToken();
             if (!token) {
-                Alert.alert('Error', 'No se pudo verificar tu identidad. Por favor, reinicia la aplicación.');
+                showAlert('Error', 'No se pudo verificar tu identidad. Por favor, reinicia la aplicación.');
                 return;
             }
 
             const response = await axios.post(
-                `${JOIN_API_URL}/${id}/join`, 
-                {}, 
+                `${JOIN_API_URL}/${id}/join`,
+                {},
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -49,11 +66,11 @@ const GroupCardComponent = ({ group, onPress, onJoinSuccess }) => {
             }
         } catch (error) {
             console.log('Error al unirse al grupo:', error.response?.data || error.message);
-            
+
             if (error.response?.status === 409) {
-                Alert.alert('Aviso', 'Ya eres miembro de este grupo.');
+                showAlert('Aviso', 'Ya eres miembro de este grupo.');
             } else {
-                Alert.alert('Error', error.response?.data?.error || 'No se pudo unir al grupo. Inténtalo de nuevo.');
+                showAlert('Error', error.response?.data?.error || 'No se pudo unir al grupo. Inténtalo de nuevo.');
             }
         }
     };
@@ -91,8 +108,8 @@ const GroupCardComponent = ({ group, onPress, onJoinSuccess }) => {
                 </View>
 
                 {!isMember ? (
-                    <TouchableOpacity 
-                        style={styles.joinButton} 
+                    <TouchableOpacity
+                        style={styles.joinButton}
                         onPress={(e) => {
                             e.stopPropagation();
                             handleJoinGroup();

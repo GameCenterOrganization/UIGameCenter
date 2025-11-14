@@ -1,24 +1,41 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, SafeAreaView, Alert, useWindowDimensions, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, SafeAreaView, useWindowDimensions, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { getAuth } from 'firebase/auth'; 
-import COLORS from '../constants/Colors'; 
+import { getAuth } from 'firebase/auth';
+import COLORS from '../constants/Colors';
 import { BASE_URL } from '@env';
 
-const TYPE_JUEGO = 'GAME'; 
+import { showMessage } from "react-native-flash-message";
+
+const TYPE_JUEGO = 'GAME';
 const TYPE_STREAMER = 'STREAMER';
+
+const showAlert = (title, message) => {
+  showMessage({
+    message: title,
+    description: message,
+    type: "default",
+    backgroundColor: COLORS.darkerBackground, 
+    color: COLORS.white, 
+    textStyle: { fontWeight: 'bold' },
+    titleStyle: { fontSize: 16, fontWeight: '800' },
+    duration: 3500,
+    icon: 'danger',
+    style: { paddingTop: 40 },
+  });
+};
 
 const CreateGroupScreen = ({ navigation, route }) => {
     const { width } = useWindowDimensions();
-    const isWide = width > 800; 
-    const [groupType, setGroupType] = useState(TYPE_JUEGO); 
+    const isWide = width > 800;
+    const [groupType, setGroupType] = useState(TYPE_JUEGO);
     const [groupName, setGroupName] = useState('');
     const [groupSubtitle, setGroupSubtitle] = useState('');
-    const [streamerLink, setStreamerLink] = useState(''); 
+    const [streamerLink, setStreamerLink] = useState('');
     
-    const [profileImageFile, setProfileImageFile] = useState(null); 
-    const [bannerImageFile, setBannerImageFile] = useState(null); 
+    const [profileImageFile, setProfileImageFile] = useState(null);
+    const [bannerImageFile, setBannerImageFile] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
 
     const profileInputRef = useRef(null);
@@ -37,7 +54,6 @@ const CreateGroupScreen = ({ navigation, route }) => {
     };
 
     const pickImage = async (setImageFile, aspect, inputRef) => {
-
         if (Platform.OS === 'web') {
             inputRef.current.click();
             return;
@@ -45,7 +61,7 @@ const CreateGroupScreen = ({ navigation, route }) => {
 
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-            Alert.alert("Permiso Denegado", "Necesitas dar permiso para acceder a la galería de fotos.");
+            showAlert("Permiso Denegado", "Necesitas dar permiso para acceder a la galería de fotos.");
             return;
         }
 
@@ -74,12 +90,12 @@ const CreateGroupScreen = ({ navigation, route }) => {
         if (isLoading) return;
 
         if (!groupName || !groupSubtitle || !profileImageFile) {
-            Alert.alert("Error", "Por favor, completa todos los campos obligatorios (Nombre, Subtítulo/Descripción e Ícono de Grupo).");
+            showAlert("Error", "Por favor, completa todos los campos obligatorios (Nombre, Subtítulo/Descripción e Ícono de Grupo).");
             return;
         }
         
         if (groupType === TYPE_STREAMER && !streamerLink) {
-            Alert.alert("Error", "Para comunidades de Streamers, el enlace es obligatorio.");
+            showAlert("Error", "Para comunidades de Streamers, el enlace es obligatorio.");
             return;
         }
         
@@ -89,7 +105,7 @@ const CreateGroupScreen = ({ navigation, route }) => {
             const auth = getAuth();
             const user = auth.currentUser;
             if (!user) {
-                Alert.alert('Error', 'Debes iniciar sesión para crear un grupo.');
+                showAlert('Error', 'Debes iniciar sesión para crear un grupo.');
                 setIsLoading(false);
                 return;
             }
@@ -98,10 +114,10 @@ const CreateGroupScreen = ({ navigation, route }) => {
             
             formData.append('GROUP_NAME_DSC', groupName);
             formData.append('SUBTITLE_DSC', groupSubtitle);
-            formData.append('COMMUNITY_TYPE_DSC', groupType); 
+            formData.append('COMMUNITY_TYPE_DSC', groupType);
             
             if (groupType === TYPE_STREAMER) {
-                formData.append('STREAM_URL', streamerLink); 
+                formData.append('STREAM_URL', streamerLink);
             }
 
             if (profileImageFile) {
@@ -148,7 +164,7 @@ const CreateGroupScreen = ({ navigation, route }) => {
             const result = await response.json();
 
             if (response.ok) {
-                Alert.alert("Éxito", `Grupo "${groupName}" creado con éxito.`);
+                showAlert("Éxito", `Grupo "${groupName}" creado con éxito.`);
                 
                 if (route.params?.onGroupCreated) {
                     route.params.onGroupCreated();
@@ -157,12 +173,12 @@ const CreateGroupScreen = ({ navigation, route }) => {
                 navigation.goBack();
             } else {
                 console.error("Error API:", result);
-                Alert.alert("Error al crear", result.message || "Ocurrió un error en el servidor.");
+                showAlert("Error al crear", result.message || "Ocurrió un error en el servidor.");
             }
 
         } catch (error) {
             console.error("Error de Red/Petición:", error);
-            Alert.alert("Error de Conexión", error.message || "No se pudo conectar con el servidor o la red falló.");
+            showAlert("Error de Conexión", error.message || "No se pudo conectar con el servidor o la red falló.");
         } finally {
             setIsLoading(false);
         }

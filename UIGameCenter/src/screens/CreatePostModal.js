@@ -8,7 +8,6 @@ import {
   ScrollView,
   Platform,
   Dimensions,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,11 +16,28 @@ import { getAuth } from 'firebase/auth';
 import COLORS from '../constants/Colors';
 import { BASE_URL } from '@env';
 
+import { showMessage } from "react-native-flash-message";
+
 const { width } = Dimensions.get('window');
 const API_URL = `${BASE_URL}/api/post`;
 const MOCK_GAMES = ['Valorant', 'League of Legends', 'Dota 2', 'Apex Legends', 'Counter-Strike 2'];
 const MAX_IMAGES = 5;
 const MAX_FILE_SIZE_MB = 10;
+
+const showAlert = (title, message) => {
+  showMessage({
+    message: title,
+    description: message,
+    type: "default",
+    backgroundColor: COLORS.darkerBackground, 
+    color: COLORS.white, 
+    textStyle: { fontWeight: 'bold' },
+    titleStyle: { fontSize: 16, fontWeight: '800' },
+    duration: 3500,
+    icon: 'danger',
+    style: { paddingTop: 40 },
+  });
+};
 
 const CreatePostModal = ({ onClose, onPostCreated }) => {
   const [game, setGame] = useState(MOCK_GAMES[0]);
@@ -33,10 +49,9 @@ const CreatePostModal = ({ onClose, onPostCreated }) => {
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef(null);
 
-
   const handleImageUpload = async () => {
     if (selectedImages.length >= MAX_IMAGES) {
-      Alert.alert('Límite de imágenes', `Solo puedes subir hasta ${MAX_IMAGES} imágenes.`);
+      showAlert('Límite de imágenes', `Solo puedes subir hasta ${MAX_IMAGES} imágenes.`);
       return;
     }
 
@@ -45,7 +60,6 @@ const CreatePostModal = ({ onClose, onPostCreated }) => {
       return;
     }
 
-    
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsMultipleSelection: true,
@@ -62,29 +76,26 @@ const CreatePostModal = ({ onClose, onPostCreated }) => {
     }
   };
 
-
   const handleWebFileChange = (event) => {
     const files = Array.from(event.target.files).slice(0, MAX_IMAGES - selectedImages.length);
     const mapped = files.map(file => ({
       uri: URL.createObjectURL(file),
       name: file.name,
       type: file.type,
-      file, 
+      file,
     }));
     setSelectedImages(prev => [...prev, ...mapped]);
   };
-
 
   const removeImage = (uri) => {
     setSelectedImages(prev => prev.filter(img => img.uri !== uri));
   };
 
-
   const handlePublish = async () => {
     if (isLoading) return;
 
     if (!game || !title || !content) {
-      Alert.alert('Error', 'Por favor completa todos los campos requeridos.');
+      showAlert('Error', 'Por favor completa todos los campos requeridos.');
       return;
     }
 
@@ -94,7 +105,7 @@ const CreatePostModal = ({ onClose, onPostCreated }) => {
       const auth = getAuth();
       const user = auth.currentUser;
       if (!user) {
-        Alert.alert('Error', 'Debes iniciar sesión para publicar.');
+        showAlert('Error', 'Debes iniciar sesión para publicar.');
         setIsLoading(false);
         return;
       }
@@ -107,7 +118,6 @@ const CreatePostModal = ({ onClose, onPostCreated }) => {
       formData.append('POST_CONTENT_DSC', content);
 
       selectedImages.forEach((img) => {
-      
         if (Platform.OS === 'web' && img.file) {
           formData.append('images', img.file, img.name);
         } else {
@@ -130,15 +140,15 @@ const CreatePostModal = ({ onClose, onPostCreated }) => {
       const data = await response.json();
 
       if (response.ok) {
-        Alert.alert('Publicado ', 'El post se creó exitosamente.');
+        showAlert('Publicado', 'El post se creó exitosamente.');
         if (onPostCreated) onPostCreated();
         onClose();
       } else {
-        Alert.alert('Error', data.message || 'No se pudo crear el post.');
+        showAlert('Error', data.message || 'No se pudo crear el post.');
       }
     } catch (err) {
       console.error('Error al publicar:', err);
-      Alert.alert('Error', 'No se pudo conectar con el servidor.');
+      showAlert('Error', 'No se pudo conectar con el servidor.');
     } finally {
       setIsLoading(false);
     }
@@ -148,7 +158,6 @@ const CreatePostModal = ({ onClose, onPostCreated }) => {
 
   return (
     <View style={styles.modalContainer}>
-    
       {Platform.OS === 'web' && (
         <input
           type="file"

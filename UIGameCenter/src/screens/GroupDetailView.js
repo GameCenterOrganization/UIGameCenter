@@ -14,12 +14,42 @@ import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import * as ImagePicker from 'expo-image-picker';
 import { BASE_URL } from '@env';
 
+import { showMessage } from "react-native-flash-message"; 
+
+const showAlert = (title, message, type = "info") => {
+    let backgroundColor = COLORS.darkerBackground;
+    let icon = 'info';
+
+    if (type === 'error') {
+        backgroundColor = COLORS.red; 
+        icon = 'danger';
+    } else if (type === 'success') {
+        backgroundColor = COLORS.purple; 
+        icon = 'success';
+    } else if (type === 'warning') {
+        backgroundColor = COLORS.yellow; 
+        icon = 'warning';
+    }
+
+    showMessage({
+        message: title,
+        description: message,
+        type: type === 'error' ? 'danger' : (type === 'success' ? 'success' : 'default'),
+        backgroundColor: backgroundColor, 
+        color: COLORS.white,
+        textStyle: { fontWeight: 'bold' },
+        titleStyle: { fontSize: 16, fontWeight: '800' },
+        duration: 3500,
+        icon: icon, 
+        style: { paddingTop: 40 },
+    });
+};
+
 const API_URL = `${BASE_URL}/api/group`;
 const MEMBER_API_URL = `${BASE_URL}/api/group`;
 
 const VALID_ROLES = ["ADMIN", "MODERATOR", "MEMBER"];
 
-// Función auxiliar para obtener las iniciales
 const getInitials = (name) => {
     if (!name) return '?';
     const parts = name.split(/\s+/).filter(p => p.length > 0);
@@ -32,7 +62,6 @@ const getInitials = (name) => {
     return name.substring(0, 2).toUpperCase();
 };
 
-// **NUEVO COMPONENTE: Avatar o Iniciales**
 const InitialFallback = ({ initials, style, textStyle }) => (
     <View style={[styles.initialFallbackContainer, style]}>
         <Text style={[styles.initialFallbackText, textStyle]}>
@@ -349,7 +378,7 @@ const AdminActionModal = ({
     );
 };
 
-const showAlert = (title, message, buttons = []) => {
+const showNativeAlert = (title, message, buttons = []) => {
     if (Platform.OS === 'web') {
         if (buttons.length === 2) {
             const confirm = window.confirm(`${title}\n\n${message}`);
@@ -386,7 +415,7 @@ const GroupDetailView = ({ navigation, route }) => {
     const fetchGroupDetail = useCallback(async () => {
         if (!groupId) {
             setLoading(false);
-            showAlert("Error", "ID del grupo no proporcionado.");
+            showAlert("Error", "ID del grupo no proporcionado.", 'error');
             return;
         }
 
@@ -409,7 +438,7 @@ const GroupDetailView = ({ navigation, route }) => {
             setGroupData(mappedDetail);
         } catch (error) {
             console.error('Error fetching group detail:', error);
-            showAlert('Error de API', error.message || 'Hubo un error al cargar el detalle de la comunidad.');
+            showAlert('Error de API', error.message || 'Hubo un error al cargar el detalle de la comunidad.', 'error');
             setGroupData(null);
         } finally {
             setLoading(false);
@@ -446,7 +475,7 @@ const GroupDetailView = ({ navigation, route }) => {
     const fetchGroupDetailAndRole = useCallback(async () => {
         if (!groupId || !firebaseUid) {
             setLoading(false);
-            if (!groupId) showAlert("Error", "ID del grupo no proporcionado.");
+            if (!groupId) showAlert("Error", "ID del grupo no proporcionado.", 'error');
             return;
         }
         setLoading(true);
@@ -487,7 +516,7 @@ const GroupDetailView = ({ navigation, route }) => {
 
         } catch (error) {
             console.error('Error fetching group detail or role:', error);
-            showAlert('Error de API', error.message || 'Hubo un error al cargar el detalle de la comunidad.');
+            showAlert('Error de API', error.message || 'Hubo un error al cargar el detalle de la comunidad.', 'error');
             setGroupData(null);
             setUserRole(null);
         } finally {
@@ -498,7 +527,7 @@ const GroupDetailView = ({ navigation, route }) => {
     const handleStreamPress = () => {
         if (groupData?.streamLink) {
             Linking.openURL(groupData.streamLink).catch(err =>
-                showAlert("Error", "No se pudo abrir el enlace: " + groupData.streamLink)
+                showAlert("Error", "No se pudo abrir el enlace: " + groupData.streamLink, 'error')
             );
         }
     };
@@ -508,7 +537,7 @@ const GroupDetailView = ({ navigation, route }) => {
     };
 
     const handleLeaveGroup = async () => {
-        showAlert(
+        showNativeAlert( 
             "Confirmar Abandono",
             "¿Estás seguro de que quieres abandonar este grupo? Si eres el creador o el último ADMIN, esto podría no ser posible.",
             [
@@ -520,7 +549,7 @@ const GroupDetailView = ({ navigation, route }) => {
                         console.log("--> Intento de abandonar grupo iniciado.");
                         const token = await getFirebaseToken();
                         if (!token) {
-                            showAlert("Error de Autenticación", "No se pudo obtener el token de autenticación. Inténtalo de nuevo.");
+                            showAlert("Error de Autenticación", "No se pudo obtener el token de autenticación. Inténtalo de nuevo.", 'error');
                             return;
                         }
 
@@ -533,7 +562,7 @@ const GroupDetailView = ({ navigation, route }) => {
                                 }
                             });
 
-                            showAlert("Abandono Exitoso", response.data.message || "Has abandonado el grupo correctamente.");
+                            showAlert("Abandono Exitoso", response.data.message || "Has abandonado el grupo correctamente.", 'success');
 
                             setTimeout(() => {
                                 navigation.goBack();
@@ -551,7 +580,7 @@ const GroupDetailView = ({ navigation, route }) => {
                                 errorMessage = error.message;
                             }
 
-                            showAlert("Error al Salir", errorMessage);
+                            showAlert("Error al Salir", errorMessage, 'error');
 
                         } finally {
                             setLoading(false);
@@ -565,16 +594,16 @@ const GroupDetailView = ({ navigation, route }) => {
 
     const handleMemberAction = (member) => {
         if (member.id === groupData.creatorUserId) {
-            showAlert("Permiso Denegado", "No puedes modificar al creador del grupo.");
+            showAlert("Permiso Denegado", "No puedes modificar al creador del grupo.", 'warning');
             return;
         }
         if (member.isCurrentUser) {
-            showAlert("Permiso Denegado", "No puedes modificar tu propia membresía/rol.");
+            showAlert("Permiso Denegado", "No puedes modificar tu propia membresía/rol.", 'warning');
             return;
         }
 
         if (userRole === 'MODERATOR' && (member.role === 'ADMIN' || member.role === 'MODERATOR')) {
-            showAlert("Jerarquía", "Como Moderador, solo puedes modificar miembros con rol 'MEMBER'.");
+            showAlert("Jerarquía", "Como Moderador, solo puedes modificar miembros con rol 'MEMBER'.", 'warning');
             return;
         }
 
@@ -585,7 +614,7 @@ const GroupDetailView = ({ navigation, route }) => {
     const handleRemoveMember = async () => {
         if (!targetMember) return;
 
-        showAlert(
+        showNativeAlert(
             "Confirmar Eliminación",
             `¿Estás seguro de que quieres eliminar a ${targetMember.username} del grupo?`,
             [
@@ -601,7 +630,7 @@ const GroupDetailView = ({ navigation, route }) => {
                                 headers: { 'Authorization': `Bearer ${token}` }
                             });
 
-                            showAlert("Miembro Eliminado", response.data.message || `${targetMember.username} ha sido eliminado del grupo.`);
+                            showAlert("Miembro Eliminado", response.data.message || `${targetMember.username} ha sido eliminado del grupo.`, 'success');
                             fetchMembersList();
                         } catch (error) {
                             let errorMessage = "Error desconocido al procesar la solicitud.";
@@ -613,7 +642,7 @@ const GroupDetailView = ({ navigation, route }) => {
                                 errorMessage = error.message;
                             }
 
-                            showAlert("Error de Eliminación", errorMessage);
+                            showAlert("Error de Eliminación", errorMessage, 'error');
                             console.error('Error al eliminar miembro:', error.response?.data || error.message);
                         } finally {
                             setTargetMember(null);
@@ -639,7 +668,7 @@ const GroupDetailView = ({ navigation, route }) => {
             fetchMembersList();
         } catch (error) {
             const errorMessage = error.response?.data?.error || error.response?.data?.message || "Hubo un error al cambiar el rol.";
-            showAlert("Error al Actualizar Rol", errorMessage);
+            showAlert("Error al Actualizar Rol", errorMessage, 'error');
             console.error('Error al cambiar rol:', error.response?.data || error.message);
         } finally {
             setIsActionModalVisible(false);
@@ -677,7 +706,7 @@ const GroupDetailView = ({ navigation, route }) => {
                 id: m.user.ID_USER,
                 username: m.user.USERNAME_DSC,
                 role: m.MEMBER_ROLE_DSC,
-                avatarUri: m.user.PROFILE_PIC ? `${BASE_URL}${m.user.PROFILE_PIC.replace('src/public', '')}` : null, // CAMBIO: Usar null
+                avatarUri: m.user.PROFILE_PIC ? `${BASE_URL}${m.user.PROFILE_PIC.replace('src/public', '')}` : null, 
                 isOnline: false,
                 isCurrentUser: m.user.FIREBASE_UID === firebaseUid,
             }));
@@ -744,6 +773,64 @@ const GroupDetailView = ({ navigation, route }) => {
         }
     }, [activeTab, fetchMembersList]);
 
+    const handleSelectImage = async () => {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permission.granted) {
+            showAlert("Permiso denegado", "Debes permitir acceso a la galería para subir imágenes.", 'warning');
+            return;
+        }
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            quality: 0.8,
+        });
+        if (!result.canceled) setImageUri(result.assets[0].uri);
+    };
+    
+    const handlePostCreation = async () => {
+        if (!newPostText.trim()) return showAlert("Escribe algo para publicar", "El contenido de la publicación no puede estar vacío.", 'warning');
+        try {
+            const token = await getFirebaseToken();
+            if (!token) return showAlert("No autenticado", "Inicia sesión para publicar.", 'error');
+            const formData = new FormData();
+            formData.append("POST_CONTENT_DSC", newPostText);
+
+            if (imageUri) {
+                const response = await fetch(imageUri);
+                const blob = await response.blob();
+                const filename = `photo_${Date.now()}.jpg`;
+                formData.append("image", blob, filename);
+            }
+
+            const res = await fetch(`${API_URL}/${groupId}/posts`, {
+                method: 'POST',
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                },
+                body: formData,
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.message || "Error creando publicación");
+            }
+            if (data.post) {
+                setPosts(prev => [data.post, ...prev]);
+                setNewPostText("");
+                setImageUri(null);
+                showAlert("Publicación Exitosa", "Tu contenido ha sido compartido con el grupo.", 'success');
+                setTimeout(() => {
+                    fetchGroupPosts();
+                }, 2000);
+            }
+        } catch (err) {
+            console.error("Error creating post:", err);
+            showAlert("Error al publicar", err.message || "Hubo un problema al crear la publicación.", 'error');
+        }
+    };
+
+
     const renderContent = () => {
         if (!groupData) return null;
         
@@ -763,63 +850,11 @@ const GroupDetailView = ({ navigation, route }) => {
                             onChangeText={setNewPostText}
                         />
                         <View style={styles.postActions}>
-                            <TouchableOpacity style={styles.imageButton} onPress={async () => {
-                                const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                                if (!permission.granted) {
-                                    Alert.alert("Permiso denegado", "Debes permitir acceso a la galería para subir imágenes.");
-                                    return;
-                                }
-                                const result = await ImagePicker.launchImageLibraryAsync({
-                                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                                    allowsEditing: true,
-                                    quality: 0.8,
-                                });
-                                if (!result.canceled) setImageUri(result.assets[0].uri);
-                            }}>
+                            <TouchableOpacity style={styles.imageButton} onPress={handleSelectImage}>
                                 <Ionicons name="image-outline" size={24} color={COLORS.grayText} />
                                 <Text style={styles.imageButtonText}>Imagen</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.postButton} onPress={async () => {
-                                if (!newPostText.trim()) return Alert.alert("Escribe algo para publicar");
-                                try {
-                                    const token = await getFirebaseToken();
-                                    if (!token) return Alert.alert("No autenticado", "Inicia sesión para publicar.");
-                                    const formData = new FormData();
-                                    formData.append("POST_CONTENT_DSC", newPostText);
-
-                                    if (imageUri) {
-                                        const response = await fetch(imageUri);
-                                        const blob = await response.blob();
-                                        const filename = `photo_${Date.now()}.jpg`;
-                                        formData.append("image", blob, filename);
-                                    }
-
-                                    const res = await fetch(`${API_URL}/${groupId}/posts`, {
-                                        method: 'POST',
-                                        headers: {
-                                            "Authorization": `Bearer ${token}`,
-                                        },
-                                        body: formData,
-                                    });
-
-                                    const data = await res.json();
-
-                                    if (!res.ok) {
-                                        throw new Error(data.message || "Error creando publicación");
-                                    }
-                                    if (data.post) {
-                                        setPosts(prev => [data.post, ...prev]);
-                                        setNewPostText("");
-                                        setImageUri(null);
-                                        setTimeout(() => {
-                                            fetchGroupPosts();
-                                        }, 2000);
-                                    }
-                                } catch (err) {
-                                    console.error("Error creating post:", err);
-                                    Alert.alert("Error al publicar", err.message || "Revisa la consola");
-                                }
-                            }}>
+                            <TouchableOpacity style={styles.postButton} onPress={handlePostCreation}>
                                 <Text style={styles.postButtonText}>Publicar</Text>
                             </TouchableOpacity>
                         </View>

@@ -8,7 +8,6 @@ import {
   ScrollView,
   Platform,
   ActivityIndicator,
-  Alert,
   useWindowDimensions,
   KeyboardAvoidingView,
 } from "react-native";
@@ -21,9 +20,27 @@ import { styles } from "./ProfileStyle";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { BASE_URL } from '@env';
 
+import { showMessage } from "react-native-flash-message"; 
+import COLORS from '../../../constants/Colors'; 
+
 const PROFILE_GET = `${BASE_URL}/api/users/profile`;
 const PROFILE_UPDATE = `${BASE_URL}/api/users/profile/update`;
 const PROFILE_UPLOAD_PIC = `${BASE_URL}/api/users/profile/upload-photo`;
+
+const showAlert = (title, message, type = "default") => {
+  showMessage({
+    message: title,
+    description: message,
+    type: type, 
+    backgroundColor: COLORS.darkerBackground,
+    color: COLORS.white,
+    textStyle: { fontWeight: 'bold' },
+    titleStyle: { fontSize: 16, fontWeight: '800' },
+    duration: 3500, 
+    icon: type === 'success' ? 'success' : 'danger', 
+    style: { paddingTop: 20 },
+  });
+};
 
 export default function UserProfileScreen({ navigation }) {
   const { width } = useWindowDimensions();
@@ -67,7 +84,7 @@ export default function UserProfileScreen({ navigation }) {
         if (data.birthDate) {
           const [year, month, day] = data.birthDate.split("-").map(Number);
           if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
-            birthDate = new Date(year, month - 1, day);
+            birthDate = new Date(year, month - 1, day); 
           }
         }
 
@@ -83,7 +100,7 @@ export default function UserProfileScreen({ navigation }) {
         }));
       } catch (err) {
         console.error("Error al obtener perfil:", err);
-        Alert.alert("Error", "No se pudo cargar tu perfil.");
+        showAlert("Error de Conexión", "No se pudo cargar tu perfil.", "danger"); 
       } finally {
         setLoading(false);
       }
@@ -113,14 +130,14 @@ export default function UserProfileScreen({ navigation }) {
 
   const pickImageAndUpload = useCallback(async () => {
     if (!firebaseUser) {
-      Alert.alert("Error", "Usuario no autenticado. Por favor, inicia sesión.");
+      showAlert("Error", "Usuario no autenticado. Por favor, inicia sesión.", "danger"); 
       return;
     }
 
     if (Platform.OS !== "web") {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert("Permisos requeridos", "Necesitamos acceso a tu galería.");
+        showAlert("Permisos requeridos", "Necesitamos acceso a tu galería para subir la imagen.", "danger"); 
         return;
       }
     }
@@ -141,6 +158,7 @@ export default function UserProfileScreen({ navigation }) {
       const type = `image/${match ? match[1] : "jpeg"}`;
 
       const formData = new FormData();
+   
       formData.append("photo", {
         uri: localUri,
         name: filename,
@@ -153,7 +171,7 @@ export default function UserProfileScreen({ navigation }) {
         method: "POST",
         headers: {
           Authorization: `Bearer ${idToken}`,
-          Accept: "application/json",
+          Accept: "application/json", 
         },
         body: formData,
       });
@@ -162,9 +180,11 @@ export default function UserProfileScreen({ navigation }) {
       const data = await res.json();
 
       setProfile((p) => ({ ...p, photoURL: data.photoURL || localUri }));
+      showAlert("Éxito", "Tu foto de perfil ha sido subida correctamente.", "success"); 
+
     } catch (err) {
       console.error("Error al subir imagen:", err);
-      Alert.alert("Error", "No se pudo subir la imagen.");
+      showAlert("Error de Subida", "No se pudo subir la imagen. Inténtalo de nuevo.", "danger"); 
     } finally {
       setSaving(false);
     }
@@ -172,12 +192,13 @@ export default function UserProfileScreen({ navigation }) {
 
   const saveProfile = async () => {
     if (!firebaseUser) {
-      Alert.alert("Error", "Usuario no autenticado.");
+      showAlert("Error", "Usuario no autenticado.", "danger");
       return;
     }
 
     setSaving(true);
     try {
+     
       const formattedBirthDate = profile.birthDate
         ? profile.birthDate.toISOString().split("T")[0]
         : null;
@@ -200,10 +221,10 @@ export default function UserProfileScreen({ navigation }) {
       });
 
       if (!res.ok) throw new Error(`Save failed: ${res.status}`);
-      Alert.alert("Éxito", "Perfil actualizado correctamente.");
+      showAlert("Éxito", "Perfil actualizado correctamente.", "success"); 
     } catch (err) {
       console.error("Error al guardar:", err);
-      Alert.alert("Error", "No se pudo guardar el perfil.");
+      showAlert("Error al Guardar", "No se pudo guardar el perfil. Revisa tu conexión.", "danger"); 
     } finally {
       setSaving(false);
     }

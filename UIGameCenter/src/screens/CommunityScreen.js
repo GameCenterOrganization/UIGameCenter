@@ -10,7 +10,6 @@ import {
   SafeAreaView,
   ActivityIndicator,
   RefreshControl,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import PostCard from '../components/PostCard';
@@ -21,9 +20,26 @@ import { getAuth } from 'firebase/auth';
 import GroupDiscoveryScreen from './GroupDiscoveryScreen';
 import { BASE_URL } from '@env';
 
+import { showMessage } from "react-native-flash-message";
+
 const { width } = Dimensions.get('window');
 const FILTER_OPTIONS = ['Todos', 'Más Recientes', 'Más Populares', 'Más Comentados', 'Sólo Tendencias'];
 const API_URL = `${BASE_URL}/api/post`;
+
+const showAlert = (title, message) => {
+  showMessage({
+    message: title,
+    description: message,
+    type: "default",
+    backgroundColor: COLORS.darkerBackground, 
+    color: COLORS.white, 
+    textStyle: { fontWeight: 'bold' },
+    titleStyle: { fontSize: 16, fontWeight: '800' },
+    duration: 3500,
+    icon: 'danger',
+    style: { paddingTop: 40 },
+  });
+};
 
 const CommunityScreen = React.memo(({ navigation }) => {
   const [filterVisible, setFilterVisible] = useState(false);
@@ -66,7 +82,7 @@ const CommunityScreen = React.memo(({ navigation }) => {
       const user = auth.currentUser;
 
       if (!user) {
-        Alert.alert("Error", "No se encontró usuario autenticado.");
+        showAlert("Error", "No se encontró usuario autenticado.");
         return;
       }
 
@@ -83,15 +99,15 @@ const CommunityScreen = React.memo(({ navigation }) => {
 
       if (!response.ok) {
         console.error("Error del servidor:", data);
-        Alert.alert("Error", data.message || "Error al eliminar el post");
+        showAlert("Error", data.message || "Error al eliminar el post");
         return;
       }
 
-      Alert.alert("Éxito", "Post eliminado correctamente");
+      showAlert("Éxito", "Post eliminado correctamente");
       setPosts((prevPosts) => prevPosts.filter((post) => post.ID_POST !== postId));
     } catch (error) {
       console.error("Error al intentar eliminar el post:", error);
-      Alert.alert("Error", "Ocurrió un error al eliminar el post.");
+      showAlert("Error", "Ocurrió un error al eliminar el post.");
     }
   };
 
@@ -165,10 +181,8 @@ const CommunityScreen = React.memo(({ navigation }) => {
       </Modal>
 
       {activeTab === 'Clubes' ? (
-      
         <GroupDiscoveryScreen navigation={navigation} />
       ) : (
-  
         <>
           <Text style={[styles.sectionTitle, { paddingHorizontal: 14 }]}>
             {searchQuery
@@ -201,13 +215,11 @@ const CommunityScreen = React.memo(({ navigation }) => {
         </>
       )}
 
- 
       <Modal animationType="fade" transparent visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalBackground}>
           <CreatePostModal onClose={() => setModalVisible(false)} onPostCreated={fetchPosts} />
         </View>
       </Modal>
-
 
       <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
         <Ionicons name="add" size={28} color={COLORS.white} />
