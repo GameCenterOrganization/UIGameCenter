@@ -6,9 +6,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import COLORS from '../constants/Colors';
 import { getAuth } from 'firebase/auth';
+import { BASE_URL } from '@env';
 
 const { width } = Dimensions.get('window');
-const BASE_URL = "http://localhost:8080";
 const EVENT_API = `${BASE_URL}/api/events`;
 
 const EventDetailScreen = ({ route, navigation }) => {

@@ -29,7 +29,6 @@ export default function LoginScreen({ navigation }) {
   const { width } = useWindowDimensions();
   const isNarrow = width < 480;
 
-  // Form / UI states
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const {
