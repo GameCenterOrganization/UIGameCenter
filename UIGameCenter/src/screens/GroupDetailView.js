@@ -927,7 +927,7 @@ const GroupDetailView = ({ navigation, route }) => {
                         <View style={styles.actionButtonContainer}>
                             <TouchableOpacity 
                                 style={styles.scheduleButton}
-                                onPress={() => navigation.navigate('ProgramarEvento', { groupId })}
+                                onPress={() => navigation.navigate('CreateEvent', { groupId })}
                             >
                                 <Text style={styles.scheduleButtonText}>+ Programar Evento</Text>
                             </TouchableOpacity>
@@ -950,7 +950,7 @@ const GroupDetailView = ({ navigation, route }) => {
                                     isOwner={isOwner}
                                     onPress={() => navigation.navigate('EventDetail', { event })}
                                     onJoin={() => !isOwner && handleJoinEvent(event.ID_EVENT)}
-                                    onEdit={() => isOwner && navigation.navigate('ProgramarEvento', { 
+                                    onEdit={() => isOwner && navigation.navigate('CreateEvent', { 
                                         eventToEdit: event, 
                                         groupId 
                                     })}

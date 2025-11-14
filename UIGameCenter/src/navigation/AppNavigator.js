@@ -16,6 +16,7 @@ import GroupDetailView from '../screens/GroupDetailView';
 import CreateGroupScreen from '../screens/CreateGroupScreen';
 import EditGroupScreen from '../screens/EditGroupScreen';
 import GameDetailsScreen from '../components/GameDetailsScreen';
+import SubscriptionPlansScreen from '../screens/PlanSuscription';
 
 // === EVENTOS ===
 import CreateEventScreen from '../screens/CreateEventScreen'; // ← NUEVA PANTALLA
@@ -45,6 +46,7 @@ const AppNavigator = () => {
         <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
         <Stack.Screen name="GameDetails" component={GameDetailsScreen} />
         <Stack.Screen name="EventDetail" component={EventDetailScreen} />
+        <Stack.Screen name="SubscriptionPlans" component={SubscriptionPlansScreen} options={{ headerShown: false }}/>
     
         <Stack.Screen name="Profile">
           {props => (

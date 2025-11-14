@@ -13,11 +13,14 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Header from '../components/Header';
 import Categories from '../components/Categories';
 import GameCard from '../components/GameCard';
 import FloatingChat from '../components/FloatingChat';
 import { BASE_URL_GAME } from '@env';
+import { useNavigation } from '@react-navigation/native';
+
 const MAX_CONTENT_WIDTH = 1200; 
 
 const useDebounce = (value, delay) => {
@@ -37,6 +40,7 @@ const API_BASE_URL = `${BASE_URL_GAME}/api/games`;
 
 const HomeScreen = () => {
   const { width } = useWindowDimensions(); 
+  const navigation = useNavigation();
 
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchText, setSearchText] = useState('');
@@ -47,6 +51,11 @@ const HomeScreen = () => {
   const [renderTrigger, setRenderTrigger] = useState(0);
   const searchInputRef = useRef(null);
   const debouncedSearchText = useDebounce(searchText, 300);
+
+  // NUEVO: Botón para ir a planes de suscripción
+  const handleViewPlans = useCallback(() => {
+    navigation.navigate('SubscriptionPlans');
+  }, [navigation]);
 
   const fetchGamesWithDetails = useCallback(async (basicGames, signal) => { 
     setLoadingDetails(true);
@@ -342,7 +351,16 @@ const HomeScreen = () => {
             end={{ x: 1, y: 0.5 }}
             style={styles.fullWidthGradientBar}
         />
-        {/* 🔑 CAMBIO 6: Pasar el padding dinámico al estilo del wrapper */}
+
+        {/* NUEVO BOTÓN DE SUSCRIPCIÓN */}
+        <View style={styles.subscriptionButtonContainer}>
+          <TouchableOpacity style={styles.subscriptionButton} onPress={handleViewPlans}>
+            <MaterialCommunityIcons name="crown" size={20} color="#fff" />
+            <Text style={styles.subscriptionButtonText}>Ver Planes de Suscripción</Text>
+            <MaterialCommunityIcons name="chevron-right" size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.mainContentWrapper(containerPadding)}> 
             <View style={styles.heroBanner}> 
                 <Text style={styles.heroText}></Text> 
@@ -364,7 +382,7 @@ const HomeScreen = () => {
                 />
                 {searchText.length > 0 && (
                   <TouchableOpacity style={styles.clearButton} onPress={handleClearSearch}>
-                    <Text style={styles.clearButtonText}>✕</Text>
+                    <Text style={styles.clearButtonText}>X</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -469,6 +487,7 @@ const HomeScreen = () => {
       cardWidth,
       numColumns, 
       containerPadding, 
+      handleViewPlans
     ]
   );
 
@@ -482,7 +501,6 @@ const HomeScreen = () => {
         {Content}
       </ScrollView>
     </View>
-    
   );
 };
 
@@ -498,6 +516,30 @@ const styles = StyleSheet.create({
   fullWidthGradientBar: {
       height: 4,
       width: '100%',
+  },
+  // NUEVO: Contenedor del botón
+  subscriptionButtonContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#1a1b2c',
+    borderBottomWidth: 1,
+    borderBottomColor: '#2a2f3f',
+  },
+  subscriptionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#875ff5',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    gap: 8,
+  },
+  subscriptionButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
   mainContentWrapper: (containerPadding) => ({
     flex: 1,
@@ -657,7 +699,7 @@ const styles = StyleSheet.create({
   errorContainer: {
     padding: 40,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'center', // ¡CORREGIDO!
   },
   errorText: {
     color: '#ff4d4d',
