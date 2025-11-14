@@ -1,4 +1,3 @@
-// LoginScreen.js
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -24,6 +23,25 @@ import * as Google from "expo-auth-session/providers/google";
 import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
 import { makeRedirectUri } from "expo-auth-session";
 import { BASE_URL } from '@env';
+
+import { showMessage } from "react-native-flash-message"; 
+
+import COLORS from '../../../constants/Colors'; 
+
+const showAlert = (title, message) => {
+  showMessage({
+    message: title,
+    description: message,
+    type: "default", 
+    backgroundColor: COLORS.darkerBackground, 
+    color: COLORS.white, 
+    textStyle: { fontWeight: 'bold' },
+    titleStyle: { fontSize: 16, fontWeight: '800' },
+    duration: 3500, 
+    icon: 'danger',
+    style: { paddingTop: 40 },
+  });
+};
 
 export default function LoginScreen({ navigation }) {
   const { width } = useWindowDimensions();
@@ -68,7 +86,19 @@ const onSubmit = async (data) => {
     navigation.navigate("Home");
   } catch (error) {
     console.error("Error al iniciar sesión:", error.message);
-    alert(error.message);
+    
+    let errorTitle = "Error de Autenticación";
+    let errorMessage = "Ocurrió un error al intentar iniciar sesión. Por favor, verifica tus credenciales e inténtalo de nuevo.";
+    
+    if (error.code === 'auth/invalid-email') {
+        errorMessage = 'El formato del correo electrónico no es válido.';
+    } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        errorMessage = 'Correo electrónico o contraseña incorrectos.';
+    } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Demasiados intentos fallidos. Inténtalo de nuevo más tarde.';
+    }
+
+    showAlert(errorTitle, errorMessage); 
   } finally {
     setLoading(false);
   }
@@ -89,7 +119,7 @@ const onSubmit = async (data) => {
           navigation.navigate("Home");
         } catch (err) {
           console.error("Error Google Sign-In:", err);
-          alert(err.message);
+          showAlert("Error de Google Sign-In", err.message); 
         }
       }
     };
@@ -100,16 +130,16 @@ const onSubmit = async (data) => {
     promptAsync();
   };
   const onGithub = () => {
-    alert("Iniciar con GitHub ");
+    showAlert("Iniciar con GitHub", "Esta funcionalidad está pendiente de implementación."); 
   };
 
   const onRegister = () => {
-    alert("Ir a registro ");
+    showAlert("Ir a registro", "Redirigiendo a la pantalla de registro."); 
     navigation.navigate("Register");
   };
 
   const onGuest = () => {
-    alert("Continuar como invitado ");
+    showAlert("Continuar como invitado", "Accediendo como usuario invitado."); 
     navigation.navigate("Home");
   };
 
@@ -287,7 +317,7 @@ const onSubmit = async (data) => {
                 <View style={LoginStyles.dividerLine} />
               </View>
 
-              {/*  */}
+              {/* */}
               <View style={LoginStyles.socialRow}>
                 <TouchableOpacity style={LoginStyles.socialBtn} onPress={onGoogle}>
                   <FontAwesome name="google" size={18} color="#7a7a7a" />
@@ -317,4 +347,3 @@ const onSubmit = async (data) => {
     </LinearGradient>
   );
 }
-

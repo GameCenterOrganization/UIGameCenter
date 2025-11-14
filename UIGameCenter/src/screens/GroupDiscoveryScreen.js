@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
     View, Text, StyleSheet, ScrollView, 
     TouchableOpacity, SafeAreaView, ActivityIndicator, 
-    Alert, Platform, TextInput
+    Platform, TextInput
 } from 'react-native';
 import COLORS from '../constants/Colors';
 import GroupCardComponent from '../components/GroupCardComponent';
@@ -10,7 +10,24 @@ import { Ionicons } from '@expo/vector-icons';
 import { getAuth } from 'firebase/auth'; 
 import { BASE_URL } from '@env';
 
+import { showMessage } from "react-native-flash-message"; 
+
 const API_URL = `${BASE_URL}/api/group`;
+
+const showAlert = (title, message) => {
+  showMessage({
+    message: title,
+    description: message,
+    type: "default", 
+    backgroundColor: COLORS.darkerBackground, 
+    color: COLORS.white, 
+    textStyle: { fontWeight: 'bold' },
+    titleStyle: { fontSize: 16, fontWeight: '800' },
+    duration: 3500, 
+    icon: 'danger',
+    style: { paddingTop: 40 },
+  });
+};
 
 const getFirebaseToken = async () => {
     try {
@@ -91,7 +108,7 @@ const GroupDiscoveryScreen = ({ navigation }) => {
             setGroupsData(classifiedGroups);
         } catch (error) {
             console.error('Error fetching groups:', error);
-            Alert.alert('Error de API', error.message || 'Hubo un error al cargar las comunidades.');
+            showAlert('Error de API', error.message || 'Hubo un error al cargar las comunidades.');
             setGroupsData({ Juegos: [], Streamers: [] });
         } finally {
             setLoading(false);
@@ -110,11 +127,7 @@ const GroupDiscoveryScreen = ({ navigation }) => {
     const handleJoinSuccess = (group) => {
         const message = `¡Bienvenido! Te has unido a ${group.title} correctamente.`;
 
-        if (Platform.OS === 'web') {
-            window.alert(`Éxito: ${message}`); 
-        } else {
-            Alert.alert('Éxito', message);
-        }
+        showAlert('Éxito', message);
         
         navigateToGroupDetail(group);
         
