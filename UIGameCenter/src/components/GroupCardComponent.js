@@ -5,7 +5,7 @@ import COLORS from '../constants/Colors';
 import axios from 'axios';
 import { getAuth } from 'firebase/auth';
 
-const BASE_URL = "http://192.168.0.6:8080";
+const BASE_URL = "http://localhost:8080";
 const JOIN_API_URL = `${BASE_URL}/api/group`;
 
 const getFirebaseToken = async () => {

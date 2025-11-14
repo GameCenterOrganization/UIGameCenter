@@ -14,8 +14,11 @@ import PostDetailScreen from '../screens/PostDetailScreen';
 import GroupDiscoveryScreen from '../screens/GroupDiscoveryScreen';
 import GroupDetailView from '../screens/GroupDetailView';
 import CreateGroupScreen from '../screens/CreateGroupScreen';
-import CreateEventScreen from '../screens/CreateEventScreen';  
 import EditGroupScreen from '../screens/EditGroupScreen';
+
+// === EVENTOS ===
+import ProgramarEventoScreen from '../screens/CreateEventScreen'; // ← NUEVA PANTALLA
+import EventDetailScreen from '../screens/EventDetailScreen';         // ← DETALLE DEL EVENTO
 
 const Stack = createNativeStackNavigator();
 
@@ -23,21 +26,27 @@ const AppNavigator = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
+        
+        {/* === AUTENTICACIÓN === */}
         <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Register" component={RegisterScreen} />
 
+        {/* === PANTALLAS PÚBLICAS === */}
+        <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Community" component={CommunityScreen} />
         <Stack.Screen name="PostDetail" component={PostDetailScreen} />
         <Stack.Screen name="GroupDiscovery" component={GroupDiscoveryScreen} />
 
-       
+        {/* === GRUPOS === */}
         <Stack.Screen name="GroupDetail" component={GroupDetailView} />
         <Stack.Screen name="CreateGroup" component={CreateGroupScreen} />
-       <Stack.Screen name="EditGroupScreen" component={EditGroupScreen} />
-        <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
+        <Stack.Screen name="EditGroupScreen" component={EditGroupScreen} />
 
-    
+        {/* === EVENTOS === */}
+        <Stack.Screen name="ProgramarEvento" component={ProgramarEventoScreen} />
+        <Stack.Screen name="EventDetail" component={EventDetailScreen} />
+
+        {/* === USUARIO PROTEGIDO === */}
         <Stack.Screen name="Profile">
           {props => (
             <ProtectedRoute>
@@ -53,6 +62,7 @@ const AppNavigator = () => {
             </ProtectedRoute>
           )}
         </Stack.Screen>
+
       </Stack.Navigator>
     </NavigationContainer>
   );

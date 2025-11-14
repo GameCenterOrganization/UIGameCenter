@@ -32,7 +32,7 @@ const useDebounce = (value, delay) => {
   return debouncedValue;
 };
 
-const API_BASE_URL = 'http://192.168.0.6:3000/api/games';
+const API_BASE_URL = 'http://localhost:3000/api/games';
 
 const HomeScreen = () => {
   const { width } = useWindowDimensions(); 

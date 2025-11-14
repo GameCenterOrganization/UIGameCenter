@@ -141,7 +141,7 @@ const PostCard = ({ post, onPress, currentUser, onDelete }) => {
                   activeOpacity={0.9}
                 >
                   <Image
-                    source={{ uri: `http://192.168.0.6:8080${uri}` }}
+                    source={{ uri: `http://localhost:8080${uri}` }}
                     style={styles.mainImage}
                     resizeMode="cover"
                   />
@@ -168,7 +168,7 @@ const PostCard = ({ post, onPress, currentUser, onDelete }) => {
           <View style={styles.authorInfo}>
             {user?.PROFILE_PIC ? (
               <Image 
-                source={{ uri: `http://192.168.0.6:8080${user.PROFILE_PIC}` }} 
+                source={{ uri: `http://localhost:8080${user.PROFILE_PIC}` }} 
                 style={styles.authorAvatar} 
               />
             ) : (

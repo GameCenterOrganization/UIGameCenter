@@ -10,9 +10,9 @@ const { width } = Dimensions.get('window');
 
 const getApiBaseUrl = () => {
   if (Platform.OS === 'android') {
-    return 'http://192.168.0.6:8080/api';
+    return 'http://localhost:8080/api';
   } else if (Platform.OS === 'ios') {
-    return 'http://192.168.0.6:8080/api';
+    return 'http://localhost:8080/api';
   } else {
     return 'http://localhost:8080/api';
   }
@@ -24,9 +24,9 @@ const COMMENTS_URL = `${API_BASE_URL}/comments`;
 
 const getImageBaseUrl = () => {
   if (Platform.OS === 'android') {
-    return 'http://192.168.0.6:8080';
+    return 'http://localhost:8080';
   } else if (Platform.OS === 'ios') {
-    return 'http://192.168.0.6:8080';
+    return 'http://localhost:8080';
   } else {
     return 'http://localhost:8080';
   }
