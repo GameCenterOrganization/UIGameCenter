@@ -1,0 +1,1450 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+    View, Text, StyleSheet, ScrollView,
+    Image, TouchableOpacity, TextInput,
+    SafeAreaView, Modal, Switch, Linking, Alert, ActivityIndicator, Platform
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
+import axios from 'axios';
+import COLORS from '../constants/Colors';
+import GroupPostItem from '../components/GroupPostItem';
+import MemberListingRow from '../components/MemberListingRow';
+import EventCard from '../components/EventCard';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import * as ImagePicker from 'expo-image-picker';
+import { BASE_URL } from '@env';
+
+const API_URL = `${BASE_URL}/api/group`;
+const MEMBER_API_URL = `${BASE_URL}/api/group`;
+
+const VALID_ROLES = ["ADMIN", "MODERATOR", "MEMBER"];
+
+// Función auxiliar para obtener las iniciales
+const getInitials = (name) => {
+    if (!name) return '?';
+    const parts = name.split(/\s+/).filter(p => p.length > 0);
+    if (parts.length === 1) {
+        return parts[0].substring(0, 2).toUpperCase();
+    }
+    if (parts.length >= 2) {
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+};
+
+// **NUEVO COMPONENTE: Avatar o Iniciales**
+const InitialFallback = ({ initials, style, textStyle }) => (
+    <View style={[styles.initialFallbackContainer, style]}>
+        <Text style={[styles.initialFallbackText, textStyle]}>
+            {initials}
+        </Text>
+    </View>
+);
+
+const BannerPlaceholder = ({ text }) => (
+    <View style={styles.bannerPlaceholder}>
+        <Ionicons name="image-outline" size={30} color={COLORS.grayText} />
+        <Text style={styles.bannerPlaceholderText}>{text}</Text>
+    </View>
+);
+
+const getFirebaseToken = async () => {
+    const auth = getAuth();
+    return new Promise((resolve) => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            unsubscribe();
+            try {
+                if (user) {
+                    const token = await user.getIdToken();
+                    resolve(token);
+                } else {
+                    resolve(null);
+                }
+            } catch (err) {
+                console.error("Error obteniendo token firebase:", err);
+                resolve(null);
+            }
+        });
+    });
+};
+
+const mapApiToGroupDetail = (group) => {
+    const isStreamer = !!group.streamerInfo;
+    const isLive = isStreamer && group.streamerInfo?.IS_LIVE_BOOL;
+
+    const membersTotal = group.MEMBER_COUNT ? group.MEMBER_COUNT.toLocaleString('es-ES') : '0';
+    const currentFirebaseUid = getAuth().currentUser?.uid;
+
+    const bannerUri = group.BANNER_IMG_URL
+        ? `${BASE_URL}${group.BANNER_IMG_URL}`
+        : null; 
+
+    const profilePicUri = group.PROFILE_IMG_URL
+        ? `${BASE_URL}${group.PROFILE_IMG_URL}`
+        : null; 
+
+    return {
+        id: group.ID_GROUP,
+        name: group.GROUP_NAME_DSC,
+        subtitle: group.SUBTITLE_DSC || 'Sin descripción.',
+        communityType: group.COMMUNITY_TYPE_DSC,
+        membersTotal: membersTotal,
+        isStreamer: isStreamer,
+        bannerUri: bannerUri,
+        profilePicUri: profilePicUri,
+        membersOnline: isStreamer ? '3,400' : '1,234',
+        isLive: isLive,
+        streamLink: isStreamer ? group.streamerInfo.STREAM_URL : null,
+        liveSpectators: isLive ? (group.streamerInfo.LIVE_SPECTATORS_INT ? group.streamerInfo.LIVE_SPECTATORS_INT.toLocaleString('es-ES') : 'N/A') : null,
+        creatorUserId: group.ID_USER_CREATOR,
+        currentFirebaseUid: currentFirebaseUid,
+    };
+};
+
+const AvisarDirectoModal = ({ isVisible, onClose }) => {
+    const [streamTitle, setStreamTitle] = useState('');
+    const [isLiveNow, setIsLiveNow] = useState(false);
+
+    const handleAvisar = () => {
+        if (isLiveNow) {
+            console.log('Avisando directo INMEDIATO con título:', streamTitle);
+        } else {
+            console.log('Programando directo con título:', streamTitle);
+        }
+        onClose();
+    };
+
+    const modalStyles = StyleSheet.create({
+        centeredView: {
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: 'rgba(0,0,0,0.5)',
+        },
+        modalView: {
+            margin: 20,
+            backgroundColor: COLORS.darkBackground,
+            borderRadius: 10,
+            padding: 35,
+            alignItems: 'center',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 4,
+            elevation: 5,
+            width: '90%',
+        },
+        modalTitle: {
+            marginBottom: 20,
+            textAlign: 'center',
+            fontSize: 20,
+            fontWeight: 'bold',
+            color: COLORS.white,
+        },
+        toggleRow: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            width: '100%',
+            marginBottom: 20,
+            paddingVertical: 10,
+        },
+        toggleText: { color: COLORS.grayText, fontSize: 16 },
+        input: {
+            width: '100%',
+            padding: 12,
+            borderWidth: 1,
+            borderColor: COLORS.inputBackground,
+            borderRadius: 8,
+            color: COLORS.white,
+            backgroundColor: COLORS.inputBackground,
+            marginBottom: 15,
+        },
+        dateButton: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            padding: 10,
+            backgroundColor: COLORS.inputBackground,
+            borderRadius: 8,
+            width: '100%',
+            justifyContent: 'center',
+            marginBottom: 20,
+        },
+        dateButtonText: {
+            color: COLORS.purple,
+            marginLeft: 10,
+            fontWeight: '600',
+        },
+        buttonRow: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            width: '100%',
+            marginTop: 10,
+        },
+        button: {
+            borderRadius: 8,
+            padding: 10,
+            elevation: 2,
+            flex: 1,
+            marginHorizontal: 5,
+        },
+        cancelButton: {
+            backgroundColor: COLORS.inputBackground,
+            borderWidth: 1,
+            borderColor: COLORS.grayText,
+        },
+        programButton: { backgroundColor: COLORS.purple },
+        textStyle: { color: COLORS.white, textAlign: 'center', fontWeight: '600' },
+    });
+
+    return (
+        <Modal animationType="slide" transparent={true} visible={isVisible} onRequestClose={onClose}>
+            <View style={modalStyles.centeredView}>
+                <View style={modalStyles.modalView}>
+                    <Text style={modalStyles.modalTitle}>
+                        {isLiveNow ? 'Avisar Directo AHORA' : 'Programar Directo/Evento'}
+                    </Text>
+
+                    <View style={modalStyles.toggleRow}>
+                        <Text style={modalStyles.toggleText}>¿Estás en directo ahora?</Text>
+                        <Switch
+                            trackColor={{ false: COLORS.grayText, true: COLORS.purple }}
+                            thumbColor={COLORS.white}
+                            onValueChange={setIsLiveNow}
+                            value={isLiveNow}
+                        />
+                    </View>
+
+                    <TextInput
+                        style={modalStyles.input}
+                        placeholder="Título del Stream/Evento (Ej: Ranked con subs)"
+                        placeholderTextColor={COLORS.grayText}
+                        value={streamTitle}
+                        onChangeText={setStreamTitle}
+                    />
+
+                    {!isLiveNow && (
+                        <TouchableOpacity style={modalStyles.dateButton}>
+                            <Ionicons name="calendar-outlineFirst" size={20} color={COLORS.purple} />
+                            <Text style={modalStyles.dateButtonText}>Seleccionar Fecha y Hora</Text>
+                        </TouchableOpacity>
+                    )}
+
+                    <View style={modalStyles.buttonRow}>
+                        <TouchableOpacity style={[modalStyles.button, modalStyles.cancelButton]} onPress={onClose}>
+                            <Text style={modalStyles.textStyle}>Cancelar</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[modalStyles.button, modalStyles.programButton]}
+                            onPress={handleAvisar}
+                            disabled={streamTitle.length < 3}
+                        >
+                            <Text style={[modalStyles.textStyle, { fontWeight: '800' }]}>
+                                {isLiveNow ? 'Confirmar Aviso' : 'Programar'}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </View>
+        </Modal>
+    );
+};
+
+const AdminActionModal = ({ isVisible, onClose, targetMember, onRemove, onRoleChange }) => {
+    const [isRoleModalVisible, setIsRoleModalVisible] = useState(false);
+    const rolesMenu = ["ADMIN", "MODERATOR", "MEMBER"];
+
+    if (!targetMember) return null;
+
+    const handleRoleSelect = (newRole) => {
+        setIsRoleModalVisible(false);
+        onRoleChange(newRole);
+    };
+
+    return (
+        <Modal animationType="slide" transparent={true} visible={isVisible} onRequestClose={onClose}>
+            <View style={styles.centeredView}>
+                <View style={styles.modalView}>
+                    <Text style={styles.modalTitle}>Acciones para {targetMember.username}</Text>
+
+                    <TouchableOpacity
+                        style={[styles.modalButton, { backgroundColor: COLORS.purple, marginVertical: 5 }]}
+                        onPress={() => setIsRoleModalVisible(true)}
+                    >
+                        <Text style={styles.modalButtonText}>Cambiar Rol</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.modalButton, { backgroundColor: COLORS.red, marginVertical: 5 }]}
+                        onPress={onRemove}
+                    >
+                        <Text style={styles.modalButtonText}>Eliminar del Grupo</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.modalButton, { backgroundColor: COLORS.inputBackground, marginTop: 15 }]}
+                        onPress={onClose}
+                    >
+                        <Text style={[styles.modalButtonText, { color: COLORS.white }]}>Cancelar</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+
+            <Modal animationType="slide" transparent={true} visible={isRoleModalVisible} onRequestClose={() => setIsRoleModalVisible(false)}>
+                <View style={styles.centeredView}>
+                    <View style={styles.modalView}>
+                        <Text style={styles.modalTitle}>Seleccionar Nuevo Rol</Text>
+                        {rolesMenu.map(role => (
+                            <TouchableOpacity
+                                key={role}
+                                style={[styles.modalButton, { backgroundColor: COLORS.purple, marginVertical: 5 }]}
+                                onPress={() => handleRoleSelect(role)}
+                            >
+                                <Text style={styles.modalButtonText}>{role}</Text>
+                            </TouchableOpacity>
+                        ))}
+                        <TouchableOpacity
+                            style={[styles.modalButton, { backgroundColor: COLORS.inputBackground, marginTop: 15 }]}
+                            onPress={() => setIsRoleModalVisible(false)}
+                        >
+                            <Text style={[styles.modalButtonText, { color: COLORS.white }]}>Cancelar</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+        </Modal>
+    );
+};
+
+const showAlert = (title, message, buttons = []) => {
+    if (Platform.OS === 'web') {
+        if (buttons.length === 2) {
+            const confirm = window.confirm(`${title}\n\n${message}`);
+            if (confirm && buttons[1]?.onPress) buttons[1].onPress();
+        } else {
+            window.alert(`${title}\n\n${message}`);
+            if (buttons[0]?.onPress) buttons[0].onPress();
+        }
+    } else {
+        Alert.alert(title, message, buttons);
+    }
+};
+
+
+const GroupDetailView = ({ navigation, route }) => {
+    const [posts, setPosts] = useState([]);
+    const [newPostText, setNewPostText] = useState("");
+    const [imageUri, setImageUri] = useState(null);
+    const [activeTab, setActiveTab] = useState('Publicaciones');
+    const [isAvisarModalVisible, setIsAvisarModalVisible] = useState(false);
+    const [groupData, setGroupData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [userRole, setUserRole] = useState(null);
+    const [membersList, setMembersList] = useState([]);
+    const [isActionModalVisible, setIsActionModalVisible] = useState(false);
+    const [targetMember, setTargetMember] = useState(null);
+
+    const [groupEvents, setGroupEvents] = useState([]);
+    const [eventsLoading, setEventsLoading] = useState(false);
+
+    const groupId = route.params?.groupData?.id;
+    const firebaseUid = getAuth().currentUser?.uid;
+    const currentUsername = getAuth().currentUser?.displayName || 'Tú'; 
+
+    const fetchGroupEvents = useCallback(async () => {
+    if (!groupId) return;
+    setEventsLoading(true);
+
+    try {
+        const token = await getFirebaseToken();
+        if (!token) {
+            console.warn("No hay token, no se puede autenticar");
+            setGroupEvents([]);
+            setEventsLoading(false);
+            return;
+        }
+
+        const res = await fetch(`${BASE_URL}/api/events/group/${groupId}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`, 
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!res.ok) {
+            const errorData = await res.json().catch(() => ({}));
+            throw new Error(errorData.message || "Error al cargar eventos del grupo");
+        }
+
+        const data = await res.json();
+        setGroupEvents(Array.isArray(data) ? data : data.events || []);
+    } catch (error) {
+        console.error("Error fetching group events:", error);
+        setGroupEvents([]);
+    } finally {
+        setEventsLoading(false);
+    }
+}, [groupId]);
+
+    const handleJoinEvent = async (eventId) => {
+        if (!firebaseUid) {
+            showAlert("Error", "Debes iniciar sesión");
+            return;
+        }
+
+        const token = await getFirebaseToken();
+        if (!token) {
+            showAlert("Error", "No autenticado");
+            return;
+        }
+
+        const event = groupEvents.find(e => e.ID_EVENT === eventId);
+        if (!event) return;
+
+        const currentUserUid = getAuth().currentUser?.uid;
+        const isOwner = event.creator?.FIREBASE_UID === currentUserUid;
+        const isJoined = event.participants?.some(p => p.ID_USER === event.creator?.ID_USER);
+
+        if (isOwner) {
+            showAlert("Información", "Eres el creador del evento");
+            return;
+        }
+
+        if (isJoined) {
+            showAlert("Información", `Ya estás inscrito en "${event.TITLE}"`);
+            return;
+        }
+
+        if (event.PARTICIPANTS >= event.PARTICIPANTS_LIMIT) {
+            showAlert("Lleno", "Este evento ya no tiene plazas");
+            return;
+        }
+
+        try {
+            const res = await fetch(`${BASE_URL}/api/events/join/${eventId}`, {
+                method: 'POST',
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                showAlert("Éxito", data.message || "Te has inscrito al evento");
+                fetchGroupEvents();
+            } else {
+                showAlert("Error", data.message || "No se pudo inscribir");
+            }
+        } catch (err) {
+            showAlert("Error", "Error de conexión");
+        }
+    };
+
+    const fetchGroupDetail = useCallback(async () => {
+        if (!groupId) {
+            setLoading(false);
+            showAlert("Error", "ID del grupo no proporcionado.");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const response = await fetch(`${API_URL}/${groupId}`, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Error al cargar el detalle del grupo');
+            }
+
+            const data = await response.json();
+            const mappedDetail = mapApiToGroupDetail(data.group);
+            setGroupData(mappedDetail);
+        } catch (error) {
+            console.error('Error fetching group detail:', error);
+            showAlert('Error de API', error.message || 'Hubo un error al cargar el detalle de la comunidad.');
+            setGroupData(null);
+        } finally {
+            setLoading(false);
+        }
+    }, [groupId]);
+
+    const fetchGroupPosts = useCallback(async () => {
+        if (!groupId) return;
+        
+        try {
+            const res = await fetch(`${API_URL}/${groupId}/posts`);
+            const data = await res.json();
+            
+            if (!res.ok) {
+                console.error("Error fetching posts:", data);
+                return;
+            }
+            
+            if (Array.isArray(data.posts)) {
+                setPosts(data.posts);
+            }
+        } catch (err) {
+            console.error("Error cargando publicaciones:", err);
+        }
+    }, [groupId]);
+
+    const fetchGroupDetailAndRole = useCallback(async () => {
+        if (!groupId || !firebaseUid) {
+            setLoading(false);
+            if (!groupId) showAlert("Error", "ID del grupo no proporcionado.");
+            return;
+        }
+        setLoading(true);
+        const token = await getFirebaseToken();
+
+        try {
+            const groupResponse = await fetch(`${API_URL}/${groupId}`, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+            });
+
+            if (!groupResponse.ok) {
+                const errorData = await groupResponse.json();
+                throw new Error(errorData.message || 'Error al cargar el detalle del grupo');
+            }
+
+            const data = await groupResponse.json();
+            const mappedDetail = mapApiToGroupDetail(data.group);
+            setGroupData(mappedDetail);
+
+            if (token) {
+                const roleResponse = await fetch(`${MEMBER_API_URL}/${groupId}/role`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                });
+
+                if (roleResponse.ok) {
+                    const roleData = await roleResponse.json();
+                    setUserRole(roleData.role);
+                } else {
+                    console.warn("No se pudo obtener el rol del usuario.");
+                    setUserRole(null);
+                }
+            }
+
+        } catch (error) {
+            console.error('Error fetching group detail or role:', error);
+            showAlert('Error de API', error.message || 'Hubo un error al cargar el detalle de la comunidad.');
+            setGroupData(null);
+            setUserRole(null);
+        } finally {
+            setLoading(false);
+        }
+    }, [groupId, firebaseUid]);
+
+    const handleStreamPress = () => {
+        if (groupData?.streamLink) {
+            Linking.openURL(groupData.streamLink).catch(err =>
+                showAlert("Error", "No se pudo abrir el enlace: " + groupData.streamLink)
+            );
+        }
+    };
+
+    const handleSettingsPress = () => {
+        navigation.navigate('EditGroupScreen', { groupId: groupData.id, initialData: groupData });
+    };
+
+    const handleLeaveGroup = async () => {
+        showAlert(
+            "Confirmar Abandono",
+            "¿Estás seguro de que quieres abandonar este grupo? Si eres el creador o el último ADMIN, esto podría no ser posible.",
+            [
+                { text: "Cancelar", style: "cancel" },
+                {
+                    text: "Abandonar",
+                    style: "destructive",
+                    onPress: async () => {
+                        const token = await getFirebaseToken();
+                        if (!token) {
+                            showAlert("Error de Autenticación", "No se pudo obtener el token de autenticación. Inténtalo de nuevo.");
+                            return;
+                        }
+
+                        try {
+                            setLoading(true);
+                            const response = await axios.post(`${MEMBER_API_URL}/${groupId}/leave`, {}, {
+                                headers: { 'Authorization': `Bearer ${token}` }
+                            });
+
+                            showAlert("Abandono Exitoso", response.data.message || "Has abandonado el grupo correctamente.");
+                            setTimeout(() => navigation.goBack(), 500);
+                        } catch (error) {
+                            const errorMessage = error.response?.data?.error || error.response?.data?.message || "Error desconocido";
+                            showAlert("Error al Salir", errorMessage);
+                        } finally {
+                            setLoading(false);
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    const handleMemberAction = (member) => {
+        if (member.id === groupData.creatorUserId) {
+            showAlert("Permiso Denegado", "No puedes modificar al creador del grupo.");
+            return;
+        }
+        if (member.isCurrentUser) {
+            showAlert("Permiso Denegado", "No puedes modificar tu propia membresía/rol.");
+            return;
+        }
+
+        if (userRole === 'MODERATOR' && (member.role === 'ADMIN' || member.role === 'MODERATOR')) {
+            showAlert("Jerarquía", "Como Moderador, solo puedes modificar miembros con rol 'MEMBER'.");
+            return;
+        }
+
+        setTargetMember(member);
+        setIsActionModalVisible(true);
+    };
+
+    const handleRemoveMember = async () => {
+        if (!targetMember) return;
+
+        showAlert(
+            "Confirmar Eliminación",
+            `¿Estás seguro de que quieres eliminar a ${targetMember.username} del grupo?`,
+            [
+                { text: "Cancelar", style: "cancel" },
+                {
+                    text: "Eliminar",
+                    style: "destructive",
+                    onPress: async () => {
+                        const token = await getFirebaseToken();
+                        try {
+                            setLoading(true);
+                            const response = await axios.delete(`${MEMBER_API_URL}/${groupId}/members/${targetMember.id}`, {
+                                headers: { 'Authorization': `Bearer ${token}` }
+                            });
+
+                            showAlert("Miembro Eliminado", response.data.message || `${targetMember.username} ha sido eliminado del grupo.`);
+                            fetchMembersList();
+                        } catch (error) {
+                            const errorMessage = error.response?.data?.error || error.response?.data?.message || "Error desconocido";
+                            showAlert("Error de Eliminación", errorMessage);
+                        } finally {
+                            setTargetMember(null);
+                            setLoading(false);
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    const handleUpdateRole = async (newRole) => {
+        if (!targetMember || !newRole) return;
+
+        const token = await getFirebaseToken();
+        try {
+            setLoading(true);
+            const response = await axios.put(`${MEMBER_API_URL}/${groupId}/members/${targetMember.id}/role`, { newRole }, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            showAlert("Rol Actualizado", response.data.message || `El rol de ${targetMember.username} se ha actualizado a **${newRole}**.`);
+            fetchMembersList();
+        } catch (error) {
+            const errorMessage = error.response?.data?.error || error.response?.data?.message || "Hubo un error al cambiar el rol.";
+            showAlert("Error al Actualizar Rol", errorMessage);
+        } finally {
+            setIsActionModalVisible(false);
+            setTargetMember(null);
+            setLoading(false);
+        }
+    };
+
+    const fetchMembersList = useCallback(async () => {
+        if (!groupId || !firebaseUid) return;
+
+        const token = await getFirebaseToken();
+        if (!token) {
+            setMembersList([]);
+            return;
+        }
+
+        try {
+            const response = await fetch(`${MEMBER_API_URL}/${groupId}/members`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+            if (!response.ok) throw new Error("Error al cargar miembros");
+
+            const data = await response.json();
+
+            const mappedMembers = data.map(m => ({
+                id: m.user.ID_USER,
+                username: m.user.USERNAME_DSC,
+                role: m.MEMBER_ROLE_DSC,
+                avatarUri: m.user.PROFILE_PIC ? `${BASE_URL}${m.user.PROFILE_PIC.replace('src/public', '')}` : null, // CAMBIO: Usar null
+                isOnline: false,
+                isCurrentUser: m.user.FIREBASE_UID === firebaseUid,
+            }));
+
+            setMembersList(mappedMembers);
+        } catch (error) {
+            console.error('Error fetching members list:', error);
+            setMembersList([]);
+        }
+    }, [groupId, firebaseUid]);
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchGroupDetailAndRole();
+            fetchGroupPosts();
+            if (activeTab === 'Eventos') {
+                fetchGroupEvents();
+            }
+            return () => { };
+        }, [fetchGroupDetailAndRole, fetchGroupPosts, activeTab, fetchGroupEvents])
+    );
+
+    useEffect(() => {
+        if (activeTab === 'Miembros') {
+            fetchMembersList();
+        }
+        if (activeTab === 'Eventos') {
+            fetchGroupEvents();
+        }
+    }, [activeTab, fetchMembersList, fetchGroupEvents]);
+
+    const constructImageUri = (imageObj) => {
+        if (!imageObj) return null;
+
+        const possibleFields = [
+            'IMG_URL', 'IMG_URL_DSC', 'IMAGE_URL', 'path', 'filename',
+            'image_path', 'image_url', 'url', 'file_path', 'full_path', 'uri'
+        ];
+        for (const field of possibleFields) {
+            if (imageObj[field]) {
+                let url = imageObj[field];
+                if (!url.startsWith('http')) {
+                    if (url.startsWith('/')) {
+                        url = `${BASE_URL}${url}`;
+                    } else {
+                        url = `${BASE_URL}/${url}`;
+                    }
+                }
+                return url;
+            }
+        }
+        return null;
+    };
+
+    const renderContent = () => {
+        if (!groupData) return null;
+        
+        const userInitials = getInitials(currentUsername);
+
+        if (activeTab === 'Publicaciones') {
+            return (
+                <View>
+                    <View style={styles.createPostContainer}>
+                        <InitialFallback initials={userInitials} style={styles.userAvatarInitialContainer} textStyle={styles.userAvatarInitialText} />
+                        <TextInput
+                            placeholder="¿Qué quieres compartir con el grupo?"
+                            placeholderTextColor={COLORS.grayText}
+                            style={styles.postInput}
+                            multiline
+                            value={newPostText}
+                            onChangeText={setNewPostText}
+                        />
+                        <View style={styles.postActions}>
+                            <TouchableOpacity style={styles.imageButton} onPress={async () => {
+                                const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                                if (!permission.granted) {
+                                    Alert.alert("Permiso denegado", "Debes permitir acceso a la galería para subir imágenes.");
+                                    return;
+                                }
+                                const result = await ImagePicker.launchImageLibraryAsync({
+                                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                                    allowsEditing: true,
+                                    quality: 0.8,
+                                });
+                                if (!result.canceled) setImageUri(result.assets[0].uri);
+                            }}>
+                                <Ionicons name="image-outline" size={24} color={COLORS.grayText} />
+                                <Text style={styles.imageButtonText}>Imagen</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.postButton} onPress={async () => {
+                                if (!newPostText.trim()) return Alert.alert("Escribe algo para publicar");
+                                try {
+                                    const token = await getFirebaseToken();
+                                    if (!token) return Alert.alert("No autenticado", "Inicia sesión para publicar.");
+                                    const formData = new FormData();
+                                    formData.append("POST_CONTENT_DSC", newPostText);
+
+                                    if (imageUri) {
+                                        const response = await fetch(imageUri);
+                                        const blob = await response.blob();
+                                        const filename = `photo_${Date.now()}.jpg`;
+                                        formData.append("image", blob, filename);
+                                    }
+
+                                    const res = await fetch(`${API_URL}/${groupId}/posts`, {
+                                        method: 'POST',
+                                        headers: { "Authorization": `Bearer ${token}` },
+                                        body: formData,
+                                    });
+
+                                    const data = await res.json();
+
+                                    if (!res.ok) throw new Error(data.message || "Error creando publicación");
+                                    if (data.post) {
+                                        setPosts(prev => [data.post, ...prev]);
+                                        setNewPostText("");
+                                        setImageUri(null);
+                                        setTimeout(() => {
+                                            fetchGroupPosts();
+                                        }, 2000);
+                                    }
+                                } catch (err) {
+                                    Alert.alert("Error al publicar", err.message || "Revisa la consola");
+                                }
+                            }}>
+                                <Text style={styles.postButtonText}>Publicar</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                    {imageUri && (
+                        <View style={{ position: 'relative', marginBottom: 10 }}>
+                            <Image source={{ uri: imageUri }} style={{ width: '100%', height: 200, borderRadius: 10 }} />
+                            <TouchableOpacity
+                                style={{
+                                    position: 'absolute',
+                                    top: 10,
+                                    right: 10,
+                                    backgroundColor: 'rgba(0,0,0,0.6)',
+                                    borderRadius: 15,
+                                    width: 30,
+                                    height: 30,
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                }}
+                                onPress={() => setImageUri(null)}
+                            >
+                                <Ionicons name="close" size={20} color={COLORS.white} />
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                    {posts.length > 0 ? (
+                        posts.map(post => {
+                            let imageUri = null;
+                            if (post.images && Array.isArray(post.images) && post.images.length > 0) {
+                                imageUri = constructImageUri(post.images[0]);
+                            } else if (post.images && typeof post.images === 'object' && !Array.isArray(post.images)) {
+                                imageUri = constructImageUri(post.images);
+                            }
+
+                            const postUserAvatarUri = post.user?.PROFILE_PIC ? `${BASE_URL}${post.user.PROFILE_PIC}` : null; 
+                            const postUsername = post.user?.USERNAME_DSC || post.username || "Miembro";
+                            const postUserInitials = getInitials(postUsername);
+
+                            return (
+                                <GroupPostItem
+                                    key={post.ID_GROUP_POST || post.id}
+                                    post={{
+                                        id: post.ID_GROUP_POST || post.id,
+                                        username: postUsername,
+                                        time: post.POST_DATE ? new Date(post.POST_DATE).toLocaleString() : (post.time || ''),
+                                        content: post.POST_CONTENT_DSC || post.content,
+                                        imageUri: imageUri,
+                                        userAvatarUri: postUserAvatarUri, 
+                                        userInitials: postUserInitials,
+                                        likes: post.likesCount || post.likes || 0,
+                                        comments: post.commentsCount || post.comments || 0,
+                                    }}
+                                    onPress={() => { }}
+                                />
+                            );
+                        })
+                    ) : (
+                        <Text style={{ color: COLORS.white, textAlign: 'center', padding: 20 }}>
+                            No hay publicaciones en este grupo
+                        </Text>
+                    )}
+                </View>
+            );
+        }
+
+        if (activeTab === 'Miembros') {
+            return (
+                <View style={styles.membersListContainer}>
+                    <Text style={styles.membersCountText}>Miembros del grupo</Text>
+                    <Text style={styles.membersCountSubText}>{groupData.membersTotal} miembros • {groupData.membersOnline} en línea</Text>
+
+                    {membersList.length > 0 ? (
+                        membersList.map(member => (
+                            <MemberListingRow
+                                key={member.id}
+                                member={{
+                                    ...member,
+                                    initials: getInitials(member.username), 
+                                }}
+                                onPressProfile={() => showAlert("Ver Perfil", `Navegando al perfil de ${member.username}`)}
+                                userRole={userRole}
+                                onAdminAction={handleMemberAction}
+                                isCurrentUser={member.isCurrentUser}
+                            />
+                        ))
+                    ) : (
+                        <Text style={styles.placeholderText}>
+                            {loading ? "Cargando lista de miembros..." : "No se pudo cargar la lista de miembros o no eres miembro."}
+                        </Text>
+                    )}
+                </View>
+            );
+        }
+
+        if (activeTab === 'Eventos') {
+            const streamerEvents = groupEvents.filter(event => 
+                event.creator?.ID_ROLE === 1 && event.ID_GROUP === groupId
+            );
+
+            const currentUserUid = getAuth().currentUser?.uid;
+
+            return (
+                <View style={styles.contentArea}>
+                    {userRole === 'ADMIN' && (
+                        <View style={styles.actionButtonContainer}>
+                            <TouchableOpacity 
+                                style={styles.scheduleButton}
+                                onPress={() => navigation.navigate('ProgramarEvento', { groupId })}
+                            >
+                                <Text style={styles.scheduleButtonText}>+ Programar Evento</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+
+                    {eventsLoading ? (
+                        <ActivityIndicator size="large" color={COLORS.purple} style={{ marginTop: 30 }} />
+                    ) : streamerEvents.length > 0 ? (
+                        streamerEvents.map(event => {
+                            const currentUserUid = getAuth().currentUser?.uid;
+                            const isOwner = event.creator?.FIREBASE_UID === currentUserUid;
+                            const isJoined = event.participants?.some(p => p.FIREBASE_UID === currentUserUid);
+
+                            return (
+                                <EventCard
+                                    key={event.ID_EVENT}
+                                    event={event}
+                                    isJoined={isJoined}
+                                    isOwner={isOwner}
+                                    onPress={() => navigation.navigate('EventDetail', { event })}
+                                    onJoin={() => !isOwner && handleJoinEvent(event.ID_EVENT)}
+                                    onEdit={() => isOwner && navigation.navigate('ProgramarEvento', { 
+                                        eventToEdit: event, 
+                                        groupId 
+                                    })}
+                                />
+                            );
+                        })
+                    ) : (
+                        <View style={styles.placeholderContainer}>
+                            <Text style={styles.placeholderText}>
+                                No hay eventos programados en este grupo aún.
+                            </Text>
+                        </View>
+                    )}
+                </View>
+            );
+        }
+
+        return null;
+    };
+
+    if (loading) {
+        return (
+            <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color={COLORS.purple} />
+                <Text style={{ color: COLORS.grayText, marginTop: 10, fontSize: 16 }}>Cargando detalles del grupo...</Text>
+            </SafeAreaView>
+        );
+    }
+
+    if (!groupData) {
+        return (
+            <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
+                <Ionicons name="alert-circle-outline" size={50} color={COLORS.red} />
+                <Text style={{ color: COLORS.white, marginTop: 20, fontSize: 18, textAlign: 'center' }}>
+                    Error al cargar el grupo.
+                </Text>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 30, paddingVertical: 10, paddingHorizontal: 20, backgroundColor: COLORS.purple, borderRadius: 8 }}>
+                    <Text style={{ color: COLORS.white, fontWeight: '700' }}>Volver</Text>
+                </TouchableOpacity>
+            </SafeAreaView>
+        );
+    }
+
+    const groupInitials = getInitials(groupData.name);
+
+    return (
+        <SafeAreaView style={styles.container}>
+            <AvisarDirectoModal isVisible={isAvisarModalVisible} onClose={() => setIsAvisarModalVisible(false)} />
+            <AdminActionModal
+                isVisible={isActionModalVisible}
+                onClose={() => setIsActionModalVisible(false)}
+                targetMember={targetMember}
+                onRemove={handleRemoveMember}
+                onRoleChange={handleUpdateRole}
+            />
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+                <View style={styles.headerContainer}>
+                    {groupData.bannerUri ? (
+                        <Image source={{ uri: groupData.bannerUri }} style={styles.bannerImage} />
+                    ) : (
+                        <BannerPlaceholder text="Ingresa una imagen de Banner" />
+                    )}
+                    
+                    <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+                        <Ionicons name="arrow-back" size={24} color={COLORS.white} />
+                    </TouchableOpacity>
+                    <View style={styles.groupInfoBox}>
+                        <View style={styles.groupHeaderRow}>
+                            {groupData.profilePicUri ? (
+                                <Image source={{ uri: groupData.profilePicUri }} style={styles.profileImage} />
+                            ) : (
+                                <InitialFallback initials={groupInitials} style={styles.profileImageInitial} textStyle={styles.profileImageInitialText} />
+                            )}
+                            <View style={styles.titleContainer}>
+                                <Text style={styles.groupTitleText}>{groupData.name}</Text>
+                                <Text style={styles.groupSubtitleText}>{groupData.communityType}</Text>
+                            </View>
+                        </View>
+                        <Text style={styles.groupDescriptionText}>{groupData.subtitle}</Text>
+                        <View style={styles.groupContentRow}>
+                            <View style={styles.statsAndActions}>
+                                <View style={styles.statsRow}>
+                                    <Text style={styles.statText}>
+                                        {groupData.membersTotal} miembros • {groupData.membersOnline} en línea
+                                    </Text>
+                                </View>
+                                <View style={styles.actionButtonsRow}>
+                                    {groupData.isLive && groupData.isStreamer && (
+                                        <View style={styles.liveBadge}>
+                                            <Text style={styles.liveBadgeText}>
+                                                EN VIVO - {groupData.liveSpectators || '??'} espectadores
+                                            </Text>
+                                        </View>
+                                    )}
+
+                                    {groupData.isStreamer && groupData.streamLink && (
+                                        <TouchableOpacity style={styles.streamActionButton} onPress={handleStreamPress}>
+                                            <Ionicons name="logo-twitch" size={20} color={COLORS.white} />
+                                            <Text style={styles.actionText}>Ver Stream</Text>
+                                        </TouchableOpacity>
+                                    )}
+
+                                    {userRole && (
+                                        <TouchableOpacity style={[styles.actionIcon, { backgroundColor: COLORS.red }]} onPress={handleLeaveGroup}>
+                                            <Ionicons name="exit-outline" size={20} color={COLORS.white} />
+                                            <Text style={styles.actionText}>Abandonar</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                    {/*
+                                    <TouchableOpacity style={styles.actionIcon}>
+                                        <Ionicons name="notifications-outline" size={20} color={COLORS.white} />
+                                        <Text style={styles.actionText}>Notificaciones</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={styles.actionIcon}>
+                                        <Ionicons name="share-social-outline" size={20} color={COLORS.white} />
+                                        <Text style={styles.actionText}>Compartir</Text>
+                                    </TouchableOpacity>*/}
+
+                                    {userRole === 'ADMIN' && (
+                                        <TouchableOpacity style={styles.actionIcon} onPress={handleSettingsPress}>
+                                            <Ionicons name="settings-outline" size={20} color={COLORS.white} />
+                                            <Text style={styles.actionText}>Configuración</Text>
+                                        </TouchableOpacity>
+                                    )}
+
+                                    {userRole === 'ADMIN' && groupData.isStreamer && (
+                                        <TouchableOpacity style={styles.actionIcon} onPress={() => setIsAvisarModalVisible(true)}>
+                                            <Ionicons name="calendar-outline" size={20} color={COLORS.white} />
+                                            <Text style={styles.actionText}>Avisar Directo</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+                            </View>
+                        </View>
+                    </View>
+                </View>
+                <View style={styles.tabContainer}>
+                    {['Publicaciones', 'Miembros', 'Eventos'].map(tab => (
+                        <TouchableOpacity
+                            key={tab}
+                            style={[styles.tabButton, activeTab === tab && styles.activeTabButton]}
+                            onPress={() => setActiveTab(tab)}
+                        >
+                            <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>{tab}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+                <View style={styles.contentArea}>
+                    {renderContent()}
+                </View>
+            </ScrollView>
+        </SafeAreaView>
+    );
+};
+
+const styles = StyleSheet.create({
+    container: { 
+        flex: 1, 
+        backgroundColor: COLORS.darkBackground 
+    },
+    headerContainer: { 
+        backgroundColor: COLORS.darkBackground
+     },
+    bannerImage: { 
+        width: '100%', 
+        height: 180, 
+        backgroundColor: COLORS.inputBackground 
+    },
+    bannerPlaceholder: {
+        width: '100%',
+        height: 180,
+        backgroundColor: COLORS.inputBackground,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderBottomLeftRadius: 5,
+        borderBottomRightRadius: 5,
+    },
+    bannerPlaceholderText: {
+        color: COLORS.grayText,
+        marginTop: 5,
+        fontSize: 14,
+    },
+
+    backButton: { 
+        position: 'absolute', 
+        top: 40, 
+        left: 15, 
+        zIndex: 10, 
+        backgroundColor: 'rgba(0,0,0,0.5)', 
+        borderRadius: 20, 
+        padding: 5 
+    },
+    groupInfoBox: { 
+        paddingHorizontal: 15, 
+        paddingTop: 10 
+    },
+    groupHeaderRow: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        marginBottom: 10, 
+        marginTop: -50 
+    },
+    titleContainer: { 
+        flex: 1, 
+        marginLeft: 10 
+    },
+    groupTitleText: { 
+        color: COLORS.white, 
+        fontSize: 22, 
+        fontWeight: '900', 
+        marginBottom: 2 
+    },
+    groupSubtitleText: { 
+        color: COLORS.grayText, 
+        fontSize: 14, 
+        fontWeight: '500' 
+    },
+    groupDescriptionText: { 
+        color: COLORS.white, 
+        fontSize: 14, 
+        fontWeight: '400', 
+        marginBottom: 15, 
+        marginTop: 5, 
+        lineHeight: 20 
+    },
+    groupContentRow: { 
+        flexDirection: 'row', 
+        alignItems: 'flex-start' 
+    },
+
+    profileImage: { 
+        width: 80, 
+        height: 80, 
+        borderRadius: 40, 
+        borderWidth: 3, 
+        borderColor: COLORS.darkerBackground, 
+        backgroundColor: COLORS.inputBackground, 
+        marginRight: 10 
+    },
+    profileImageInitial: {
+        width: 80, 
+        height: 80, 
+        borderRadius: 40, 
+        borderWidth: 3, 
+        borderColor: COLORS.darkerBackground, 
+        backgroundColor: COLORS.inputBackground, 
+        marginRight: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    profileImageInitialText: {
+        color: COLORS.white, 
+        fontWeight: 'bold', 
+        fontSize: 30,
+    },
+
+    statsAndActions: { 
+        flex: 1 
+    },
+    statsRow: { 
+        marginBottom: 8 
+    },
+    statText: { 
+        color: COLORS.grayText, 
+        fontSize: 13, 
+        fontWeight: '600' 
+    },
+    actionButtonsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginBottom: 10,
+    },
+    liveBadge: { 
+        backgroundColor: COLORS.red, 
+        paddingHorizontal: 8, 
+        paddingVertical: 4, 
+        borderRadius: 6, 
+        marginRight: 5 
+    },
+    liveBadgeText: { 
+        color: COLORS.white, 
+        fontWeight: '700', 
+        fontSize: 12 
+    },
+    streamActionButton: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        backgroundColor: COLORS.purple, 
+        paddingHorizontal: 10, 
+        paddingVertical: 5, 
+        borderRadius: 8 
+    },
+    actionIcon: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        backgroundColor: COLORS.inputBackground, 
+        paddingHorizontal: 10, 
+        paddingVertical: 5, 
+        borderRadius: 8 
+    },
+    actionText: { 
+        color: COLORS.white, 
+        fontSize: 12, 
+        fontWeight: '600', 
+        marginLeft: 5 
+    },
+    tabContainer: { 
+        flexDirection: 'row', 
+        justifyContent: 'space-around', 
+        backgroundColor: COLORS.darkerBackground, 
+        borderBottomWidth: 1, 
+        borderBottomColor: COLORS.inputBackground, 
+        paddingVertical: 5 
+    },
+    tabButton: { 
+        paddingVertical: 10, 
+        paddingHorizontal: 15, 
+        marginHorizontal: 5 
+    },
+    activeTabButton: { 
+        borderBottomWidth: 3, 
+        borderBottomColor: COLORS.purple 
+    },
+    tabText: { 
+        color: COLORS.grayText, 
+        fontWeight: '600' 
+    },
+    activeTabText: { 
+        color: COLORS.white, 
+        fontWeight: '700' 
+    },
+    contentArea: { 
+        paddingHorizontal: 15, 
+        paddingTop: 10 
+    },
+    createPostContainer: { 
+        backgroundColor: COLORS.darkerBackground, 
+        borderRadius: 10, 
+        padding: 10, 
+        marginBottom: 15 
+    },
+
+    userAvatarInitialContainer: {
+        position: 'absolute', 
+        top: 15, 
+        left: 15, 
+        width: 30, 
+        height: 30, 
+        borderRadius: 15, 
+        backgroundColor: COLORS.purple, 
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    userAvatarInitialText: {
+        color: COLORS.white, 
+        fontWeight: '700', 
+        fontSize: 14,
+    },
+    postInput: { 
+        minHeight: 60, 
+        paddingLeft: 50, 
+        color: COLORS.white, 
+        fontSize: 15, 
+        paddingTop: 5, 
+        paddingBottom: 5 
+    },
+    postActions: { 
+        flexDirection: 'row', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        paddingTop: 10, 
+        borderTopWidth: 1, 
+        borderTopColor: COLORS.inputBackground, 
+        marginTop: 5 
+    },
+    imageButton: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        padding: 5 
+    },
+    imageButtonText: { 
+        color: COLORS.grayText, 
+        marginLeft: 5, 
+        fontSize: 13 
+    },
+    postButton: { 
+        backgroundColor: COLORS.purple, 
+        paddingVertical: 8, 
+        paddingHorizontal: 15, 
+        borderRadius: 8 
+    },
+    postButtonText: { 
+        color: COLORS.white, 
+        fontWeight: '700' 
+    },
+    membersListContainer: {},
+    membersCountText: { 
+        color: COLORS.white, 
+        fontSize: 18, 
+        fontWeight: '700', 
+        marginBottom: 2 
+    },
+    membersCountSubText: { 
+        color: COLORS.grayText, 
+        fontSize: 13, 
+        fontWeight: '500', 
+        marginBottom: 15 
+    },
+    placeholderContainer: { 
+        padding: 40, 
+        alignItems: 'center', 
+        backgroundColor: COLORS.darkerBackground, 
+        borderRadius: 10, 
+        marginTop: 20 
+    },
+    placeholderText: { 
+        color: COLORS.grayText, 
+        textAlign: 'center', 
+        fontSize: 15, 
+        marginBottom: 20 
+    },
+    eventActionButton: { 
+        backgroundColor: COLORS.purple, 
+        paddingVertical: 10, 
+        paddingHorizontal: 20, 
+        borderRadius: 10 
+    },
+    eventActionButtonText: { 
+        color: COLORS.white, 
+        fontWeight: '700' 
+    },
+    centeredView: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.7)',
+    },
+    modalView: {
+        margin: 20,
+        backgroundColor: COLORS.darkerBackground,
+        borderRadius: 10,
+        padding: 25,
+        alignItems: 'center',
+        width: '80%',
+        maxWidth: 350,
+    },
+    modalTitle: {
+        marginBottom: 20,
+        textAlign: 'center',
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: COLORS.white,
+    },
+    modalButton: {
+        width: '100%',
+        borderRadius: 8,
+        padding: 12,
+        marginVertical: 8,
+        alignItems: 'center',
+    },
+    modalButtonText: {
+        color: COLORS.white,
+        fontWeight: '700',
+        fontSize: 14,
+    },
+    actionButtonContainer: { 
+        alignItems: 'center', 
+        marginBottom: 20 
+    },
+    scheduleButton: { 
+        backgroundColor: COLORS.purple, 
+        paddingHorizontal: 24, 
+        paddingVertical: 12, 
+        borderRadius: 12, 
+        elevation: 5 
+    },
+    scheduleButtonText: { 
+        color: COLORS.white, 
+        fontSize: 16, 
+        fontWeight: 'bold' 
+    },
+
+    initialFallbackContainer: {
+        backgroundColor: COLORS.inputBackground, 
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    initialFallbackText: {
+        color: COLORS.white,
+    },
+
+});
+
+export default GroupDetailView;

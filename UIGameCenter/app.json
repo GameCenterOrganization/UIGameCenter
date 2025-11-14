@@ -1,4 +1,5 @@
 {
+  
   "expo": {
     "name": "UIGameCenter",
     "slug": "UIGameCenter",
@@ -13,9 +14,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
+      "bundleIdentifier": "com.dilangutierrez.uigamecenter",
       "supportsTablet": true
     },
     "android": {
+      "package": "com.dilangutierrez.uigamecenter",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -23,6 +26,7 @@
       "edgeToEdgeEnabled": true
     },
     "web": {
+      "scheme": "uigamecenter",
       "favicon": "./assets/favicon.png"
     }
   }
