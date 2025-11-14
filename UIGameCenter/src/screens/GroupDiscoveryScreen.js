@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert, Platform } from 'react-native';
+import { 
+    View, Text, StyleSheet, ScrollView, 
+    TouchableOpacity, SafeAreaView, ActivityIndicator, 
+    Alert, Platform, TextInput
+} from 'react-native';
 import COLORS from '../constants/Colors';
 import GroupCardComponent from '../components/GroupCardComponent';
 import { Ionicons } from '@expo/vector-icons';
@@ -53,6 +57,7 @@ const GroupDiscoveryScreen = ({ navigation }) => {
     const [activeType, setActiveType] = useState('Juegos'); 
     const [groupsData, setGroupsData] = useState({ Juegos: [], Streamers: [] }); 
     const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState(''); 
 
     const fetchGroups = useCallback(async () => {
         setLoading(true);
@@ -118,7 +123,10 @@ const GroupDiscoveryScreen = ({ navigation }) => {
         }, 500); 
     };
 
-    const currentGroups = groupsData[activeType]; 
+    const allGroupsForType = groupsData[activeType]; 
+    const currentGroups = allGroupsForType.filter(group => 
+        group.title.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     const navigateToGroupDetail = (group) => {
         navigation.navigate('GroupDetail', { groupData: group });
@@ -128,53 +136,70 @@ const GroupDiscoveryScreen = ({ navigation }) => {
         <SafeAreaView style={styles.container}>
             <ScrollView 
                 contentContainerStyle={styles.scrollContent}
-                // 🔑 PROPIEDAD PARA EL STICKY HEADER
                 stickyHeaderIndices={[0]} 
             >
                 
-                {/* 🔑 1. BARRA DE TOGGLE (STICKY) - DEBE SER EL PRIMER ELEMENTO */}
-                <View style={styles.toggleBarContainer}>
-                    <TouchableOpacity
-                        style={[styles.toggleButton, activeType === 'Juegos' && styles.activeToggleButton]}
-                        onPress={() => setActiveType('Juegos')}
-                    >
-                        <Text style={[styles.toggleText, activeType === 'Juegos' && styles.activeToggleText]}>Grupos de Juegos</Text>
-                    </TouchableOpacity>
+                <View style={styles.stickyHeaderWrapper}>
+                    
+                    <View style={styles.searchContainer}>
+                        <Ionicons name="search" size={20} color={COLORS.grayText} style={styles.searchIcon} />
+                        <TextInput
+                            style={styles.searchInput}
+                            placeholder="Buscar grupos por nombre..."
+                            placeholderTextColor={COLORS.grayText}
+                            value={searchTerm}
+                            onChangeText={setSearchTerm}
+                        />
+                        {searchTerm.length > 0 && (
+                            <TouchableOpacity onPress={() => setSearchTerm('')} style={styles.clearButton}>
+                                <Ionicons name="close-circle" size={20} color={COLORS.grayText} />
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                    
+                    <View style={styles.toggleBarContainer}>
+                        <TouchableOpacity
+                            style={[styles.toggleButton, activeType === 'Juegos' && styles.activeToggleButton]}
+                            onPress={() => setActiveType('Juegos')}
+                        >
+                            <Text style={[styles.toggleText, activeType === 'Juegos' && styles.activeToggleText]}>Grupos de Juegos</Text>
+                        </TouchableOpacity>
 
-                    <TouchableOpacity
-                        style={[styles.toggleButton, activeType === 'Streamers' && styles.activeToggleButton]}
-                        onPress={() => setActiveType('Streamers')}
-                    >
-                        <Text style={[styles.toggleText, activeType === 'Streamers' && styles.activeToggleText]}>Comunidades de Streamers</Text>
-                    </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.toggleButton, activeType === 'Streamers' && styles.activeToggleButton]}
+                            onPress={() => setActiveType('Streamers')}
+                        >
+                            <Text style={[styles.toggleText, activeType === 'Streamers' && styles.activeToggleText]}>Comunidades de Streamers</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+                
+                <View style={styles.headerContainer}>
+                    <Text style={styles.mainTitle}>Grupos y Comunidades</Text>
+                    <Text style={styles.subtitle}>Únete a grupos de juegos y comunidades de streamers</Text>
+                    
+                    <View style={styles.actionButtonsContainer}>
+                        <TouchableOpacity
+                            style={[styles.actionButton, styles.createGroupButton]}
+                            onPress={() => navigation.navigate('CreateGroup', {
+                                onGroupCreated: handleGroupCreated 
+                            })} 
+                        >
+                            <Ionicons name="people-circle-outline" size={20} color={COLORS.white} />
+                            <Text style={styles.actionButtonText}>Crear Grupo</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.actionButton, styles.scheduleEventButton, styles.secondaryActionButton]}
+                            onPress={() => navigation.navigate('CreateEvent')} 
+                        >
+                            <Ionicons name="calendar-outline" size={20} color={COLORS.purple} />
+                            <Text style={[styles.actionButtonText, styles.secondaryActionButtonText]}>Programar Evento</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
-                {/* 🔑 2. CONTENIDO SCROLLEABLE (HEADER Y GRID) */}
                 <View>
-                    <View style={styles.headerContainer}>
-                        <Text style={styles.mainTitle}>Grupos y Comunidades</Text>
-                        <Text style={styles.subtitle}>Únete a grupos de juegos y comunidades de streamers</Text>
-                        
-                        {/* 🔑 BOTONES DE ACCIÓN (NO-ABSOLUTOS) */}
-                        <View style={styles.actionButtonsContainer}>
-                            <TouchableOpacity
-                                style={[styles.actionButton, styles.createGroupButton]}
-                                onPress={() => navigation.navigate('CreateGroup', {
-                                    onGroupCreated: handleGroupCreated 
-                                })} 
-                            >
-                                <Text style={styles.actionButtonText}>Crear Grupo</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={[styles.actionButton, styles.scheduleEventButton]}
-                                onPress={() => navigation.navigate('CreateEvent')} 
-                            >
-                                <Text style={styles.actionButtonText}>Programar Evento</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-
                     {loading ? (
                         <ActivityIndicator size="large" color={COLORS.purple} style={styles.loader} />
                     ) : (
@@ -189,7 +214,9 @@ const GroupDiscoveryScreen = ({ navigation }) => {
                                 />
                             ))}
                             {currentGroups.length === 0 && (
-                                <Text style={styles.noDataText}>No hay grupos disponibles en esta categoría.</Text>
+                                <Text style={styles.noDataText}>
+                                    {searchTerm ? `No se encontraron grupos llamados "${searchTerm}" en ${activeType}.` : `No hay grupos disponibles en esta categoría.`}
+                                </Text>
                             )}
                         </View>
                     )}
@@ -200,10 +227,43 @@ const GroupDiscoveryScreen = ({ navigation }) => {
     );
 };
 
-// --- Estilos Actualizados ---
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: COLORS.darkBackground },
     scrollContent: { paddingHorizontal: 14, paddingBottom: 20 },
+
+    stickyHeaderWrapper: {
+        backgroundColor: COLORS.darkBackground, 
+        marginHorizontal: -14,
+        paddingHorizontal: 14, 
+        paddingTop: 10, 
+        paddingBottom: 5, 
+        zIndex: 10,
+    },
+    
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: COLORS.inputBackground,
+        borderRadius: 10,
+        paddingHorizontal: 15,
+        paddingVertical: 8,
+        marginBottom: 10, 
+        borderWidth: 1,
+        borderColor: 'transparent',
+    },
+    searchIcon: {
+        marginRight: 10,
+    },
+    searchInput: {
+        flex: 1,
+        color: COLORS.white,
+        fontSize: 16,
+        paddingVertical: 0, 
+    },
+    clearButton: {
+        marginLeft: 10,
+        padding: 5,
+    },
 
     headerContainer: {
         paddingVertical: 10,
@@ -217,49 +277,48 @@ const styles = StyleSheet.create({
         color: COLORS.grayText,
         fontSize: 14,
         marginTop: 4,
-        // marginBottom: 15 se ha movido a actionButtonsContainer como marginTop
     },
-    
-    // 🔑 ESTILOS DE BOTONES DE ACCIÓN ACTUALIZADOS (NO ABSOLUTOS)
+
     actionButtonsContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 20,
-        marginTop: 10, 
-        // Se eliminó position: 'absolute'
+        marginTop: 15, 
+        marginBottom: 10,
     },
     actionButton: {
-        flex: 1, // Permite que los botones compartan el espacio
-        paddingVertical: 10,
-        paddingHorizontal: 5,
+        flex: 1, 
+        flexDirection: 'row', 
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 8, 
+        paddingHorizontal: 10,
         borderRadius: 8,
         marginHorizontal: 4,
-        backgroundColor: COLORS.purple,
-        alignItems: 'center',
+        backgroundColor: COLORS.purple, 
     },
     actionButtonText: {
         color: COLORS.white,
         fontWeight: '700',
-        fontSize: 13,
+        fontSize: 12,
+        marginLeft: 5, 
         textAlign: 'center',
     },
     createGroupButton: { marginLeft: 0, marginRight: 4 },
     scheduleEventButton: { marginLeft: 4, marginRight: 0 },
+    secondaryActionButton: {
+        backgroundColor: COLORS.inputBackground, 
+        borderWidth: 1,
+        borderColor: COLORS.purple, 
+    },
+    secondaryActionButtonText: {
+        color: COLORS.purple, 
+    },
 
-    // 🔑 ESTILOS DE TOGGLE BAR ACTUALIZADOS (PARA STICKY)
     toggleBarContainer: {
         flexDirection: 'row',
-        backgroundColor: COLORS.darkBackground, // Esencial para cubrir el contenido al ser sticky
+        backgroundColor: COLORS.inputBackground, 
         borderRadius: 10,
         padding: 4,
-        marginBottom: 20,
-        
-        // Ajustes para que la barra ocupe el ancho completo a pesar del padding del ScrollView
-        marginHorizontal: -14, 
-        paddingHorizontal: 18, 
-        paddingTop: 8,
-        
-        zIndex: 10, 
     },
     toggleButton: {
         flex: 1,

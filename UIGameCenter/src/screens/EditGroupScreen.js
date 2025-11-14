@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, ScrollView, StyleSheet, Alert, ActivityIndicator, TouchableOpacity, Image, Platform } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker'; 
+import * as FileSystem from 'expo-file-system';
 import Icon from 'react-native-vector-icons/Ionicons'; 
 import { getAuth } from 'firebase/auth'; 
 import COLORS from '../constants/Colors'; 
 
 import { BASE_URL } from '@env';
 const API_URL = `${BASE_URL}/api/group`;
-
 
 const getAuthToken = async () => {
     try {
@@ -28,6 +28,36 @@ const getAuthToken = async () => {
         throw error;  
     }
 };
+const uriToBase64 = async (uri) => {
+    try {
+        if (uri.startsWith('blob:')) {
+            console.log('Convirtiendo blob a base64...');
+            
+            const response = await fetch(uri);
+            const blob = await response.blob();
+            
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const base64data = reader.result;
+                    resolve(base64data);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        } else if (Platform.OS !== 'web' && uri.startsWith('file://')) {
+            const base64 = await FileSystem.readAsStringAsync(uri, {
+                encoding: FileSystem.EncodingType.Base64,
+            });
+            return `data:image/jpeg;base64,${base64}`;
+        } else {
+            return uri;
+        }
+    } catch (error) {
+        console.error('Error convirtiendo URI:', error);
+        throw error;
+    }
+};
 
 const EditGroupScreen = () => {
     const route = useRoute();
@@ -35,7 +65,7 @@ const EditGroupScreen = () => {
     
     const { groupId, initialData } = route.params;
 
-     const initialStreamLink = initialData.streamLink 
+    const initialStreamLink = initialData.streamLink 
         || (initialData.streamerInfo && initialData.streamerInfo.STREAMER_LINK_DSC) 
         || '';
 
@@ -47,7 +77,7 @@ const EditGroupScreen = () => {
     const [profilePicUri, setProfilePicUri] = useState(initialData.profilePicUri || null);
     const [bannerUri, setBannerUri] = useState(initialData.bannerUri || null);
     const [newProfilePic, setNewProfilePic] = useState(null); 
-    const [newBanner, setNewBanner] = useState(null);      
+    const [newBanner, setNewBanner] = useState(null);       
     
     const [isLoading, setIsLoading] = useState(false);
 
@@ -76,17 +106,24 @@ const EditGroupScreen = () => {
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
             aspect: type === 'profile' ? [1, 1] : [16, 9],
-            quality: 1,
+            quality: 0.8, 
+            base64: false, 
         });
+
+        console.log('Imagen seleccionada:', { type, result });
 
         if (!result.canceled && result.assets && result.assets.length > 0) {
             const uri = result.assets[0].uri;
+            console.log('URI de imagen:', uri);
+            
             if (type === 'profile') {
                 setProfilePicUri(uri);
                 setNewProfilePic(uri);
+                console.log('Nueva foto de perfil establecida');
             } else {
                 setBannerUri(uri);
                 setNewBanner(uri);
+                console.log('Nuevo banner establecido');
             }
         }
     };
@@ -118,36 +155,55 @@ const EditGroupScreen = () => {
             if (isStreamerType) {
                 formData.append('STREAM_URL', streamLink); 
             }
-            
-            const cleanPath = (uri) => uri ? uri.replace(BASE_URL, '') : null;
-
-            if (!newProfilePic && initialData.profilePicUri) {
-                formData.append('PROFILE_IMG_URL', cleanPath(initialData.profilePicUri)); 
-            }
-
-            if (!newBanner && initialData.bannerUri) {
-                formData.append('BANNER_IMG_URL', cleanPath(initialData.bannerUri));
-            }
-
-            const appendImage = (uri, fieldName) => {
-                  const uriParts = uri.split('.');
-                  const fileType = uriParts[uriParts.length - 1]; 
-                  const mimeType = fileType === 'png' ? 'image/png' : 'image/jpeg';
-
-                  formData.append(fieldName, {
-                      uri: Platform.OS === 'android' ? uri : uri.replace('file://', ''),  
-                      name: `${fieldName}_${Date.now()}.${fileType}`,
-                      type: mimeType, 
-                  });
-            };
 
             if (newProfilePic) {
-                appendImage(newProfilePic, 'profileImage');
+                const filename = newProfilePic.split('/').pop() || 'profile.jpg';
+                const match = /\.(\w+)$/.exec(filename);
+                const fileType = match ? match[1] : 'jpg';
+                
+                if (newProfilePic.startsWith('blob:')) {
+                    const base64Data = await uriToBase64(newProfilePic);
+                    const response = await fetch(base64Data);
+                    const blob = await response.blob();
+                    
+                    formData.append('profileImage', blob, `profile_${Date.now()}.${fileType}`);
+                
+                } else {
+                    formData.append('profileImage', {
+                        uri: newProfilePic,
+                        name: `profile_${Date.now()}.${fileType}`,
+                        type: `image/${fileType}`,
+                    });
+                   
+                }
             }
 
             if (newBanner) {
-                appendImage(newBanner, 'bannerImage');
+                const filename = newBanner.split('/').pop() || 'banner.jpg';
+                const match = /\.(\w+)$/.exec(filename);
+                const fileType = match ? match[1] : 'jpg';
+                
+                if (newBanner.startsWith('blob:')) {
+              
+                    const base64Data = await uriToBase64(newBanner);
+                    
+                    const response = await fetch(base64Data);
+                    const blob = await response.blob();
+                    
+                    formData.append('bannerImage', blob, `banner_${Date.now()}.${fileType}`);
+                   
+                } else {
+                  
+                    formData.append('bannerImage', {
+                        uri: newBanner,
+                        name: `banner_${Date.now()}.${fileType}`,
+                        type: `image/${fileType}`,
+                    });
+                    console.log('Archivo nativo de banner agregado al FormData');
+                }
             }
+
+            console.log('Enviando request a:', `${API_URL}/update/${groupId}`);
 
             const response = await fetch(`${API_URL}/update/${groupId}`, {
                 method: 'PUT',
@@ -157,13 +213,16 @@ const EditGroupScreen = () => {
                 body: formData,
             });
 
+            console.log('Respuesta del servidor:', response.status);
+
             const data = await response.json();
+            console.log('Data del servidor:', data);
 
             if (response.ok) {
                 Alert.alert('Éxito', 'Comunidad/Grupo actualizado correctamente.');
                 
                 if (route.params?.onGroupUpdated) {
-                    route.params.onGroupUpdated();
+                    route.params.onGroupUpdated(); 
                 }
 
                 navigation.goBack();
@@ -172,9 +231,10 @@ const EditGroupScreen = () => {
                 Alert.alert('Error al Actualizar', data.message || `Error ${response.status}: Verifica las validaciones.`);
             }
         } catch (error) {
-            console.error('Error durante la actualización:', error.message);
+            console.error('Error durante la actualización:', error);
+            console.error('Stack:', error.stack);
             if (!error.message.includes("Usuario no autenticado")) {
-                Alert.alert('Error de Conexión', 'No se pudo completar la solicitud.');
+                Alert.alert('Error de Conexión', 'No se pudo completar la solicitud: ' + error.message);
             }
         } finally {
             setIsLoading(false);
@@ -215,12 +275,12 @@ const EditGroupScreen = () => {
                     placeholderTextColor={COLORS.grayText}
                 />
                 
-                <Text style={styles.label}>Subtítulo</Text>
+                <Text style={styles.label}>Descripcion</Text>
                 <TextInput
                     style={styles.input}
                     value={subtitle}
                     onChangeText={setSubtitle}
-                    placeholder="Escribe un subtítulo..."
+                    placeholder="Escribe una Descripcion..."
                     placeholderTextColor={COLORS.grayText}
                     maxLength={100}
                 />
@@ -239,12 +299,13 @@ const EditGroupScreen = () => {
                             style={styles.input}
                             value={streamLink}
                             onChangeText={setStreamLink}
-                            placeholder="Ej: https://twitch.tv/auronm"
+                            placeholder="Ej: https://twitch.tv/tu-perfil"
                             placeholderTextColor={COLORS.grayText}
                             keyboardType="url"
                         />
                     </>
                 )}
+                
             </View>
 
             <TouchableOpacity 
@@ -340,6 +401,25 @@ const styles = StyleSheet.create({
         padding: 10,
         borderRadius: 5,
         fontSize: 16,
+    },
+    debugPanel: {
+        marginTop: 20,
+        padding: 15,
+        backgroundColor: 'rgba(255,255,0,0.1)',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: 'yellow',
+    },
+    debugTitle: {
+        color: 'yellow',
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginBottom: 8,
+    },
+    debugText: {
+        color: COLORS.white,
+        fontSize: 14,
+        marginTop: 4,
     },
     button: {
         backgroundColor: COLORS.purple, 

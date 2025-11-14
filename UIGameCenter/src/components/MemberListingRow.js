@@ -14,6 +14,8 @@ import COLORS from '../constants/Colors';
 const MemberListingRow = ({ member, onPressProfile, userRole, onAdminAction, isCurrentUser }) => {
     const { username, role, avatarUri, isOnline } = member;
     
+    const userInitial = username ? username.charAt(0).toUpperCase() : '';
+    
     const isSpecialRole = role === 'ADMIN' || role === 'MODERATOR'; 
     const roleColor = role === 'ADMIN' ? COLORS.red : (role === 'MODERATOR' ? COLORS.purple : COLORS.grayText);
     
@@ -33,7 +35,13 @@ const MemberListingRow = ({ member, onPressProfile, userRole, onAdminAction, isC
         <TouchableOpacity style={styles.container} activeOpacity={0.8} onPress={onPressProfile}>
             
             <View style={styles.avatarContainer}>
-                <Image source={{ uri: avatarUri }} style={styles.avatar} />
+                {avatarUri ? (
+                    <Image source={{ uri: avatarUri }} style={styles.avatar} />
+                ) : (
+                    <View style={styles.avatarFallback}>
+                        <Text style={styles.avatarInitialText}>{userInitial}</Text>
+                    </View>
+                )}
                 {isOnline && <View style={styles.onlineIndicator} />}
             </View>
 
@@ -83,6 +91,20 @@ const styles = StyleSheet.create({
         borderRadius: 24,
         backgroundColor: COLORS.darkerBackground, 
     },
+    avatarFallback: { 
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: COLORS.purple, 
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    avatarInitialText: { 
+        color: COLORS.white,
+        fontWeight: 'bold',
+        fontSize: 20, 
+    },
+   
     onlineIndicator: {
         position: 'absolute',
         bottom: 0,
