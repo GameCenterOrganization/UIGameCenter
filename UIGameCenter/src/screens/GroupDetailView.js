@@ -12,12 +12,41 @@ import GroupPostItem from '../components/GroupPostItem';
 import MemberListingRow from '../components/MemberListingRow';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import * as ImagePicker from 'expo-image-picker';
+import { BASE_URL } from '@env';
 
-const BASE_URL = "http://localhost:8080";
 const API_URL = `${BASE_URL}/api/group`;
 const MEMBER_API_URL = `${BASE_URL}/api/group`;
 
 const VALID_ROLES = ["ADMIN", "MODERATOR", "MEMBER"];
+
+// Función auxiliar para obtener las iniciales
+const getInitials = (name) => {
+    if (!name) return '?';
+    const parts = name.split(/\s+/).filter(p => p.length > 0);
+    if (parts.length === 1) {
+        return parts[0].substring(0, 2).toUpperCase();
+    }
+    if (parts.length >= 2) {
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+};
+
+// **NUEVO COMPONENTE: Avatar o Iniciales**
+const InitialFallback = ({ initials, style, textStyle }) => (
+    <View style={[styles.initialFallbackContainer, style]}>
+        <Text style={[styles.initialFallbackText, textStyle]}>
+            {initials}
+        </Text>
+    </View>
+);
+
+const BannerPlaceholder = ({ text }) => (
+    <View style={styles.bannerPlaceholder}>
+        <Ionicons name="image-outline" size={30} color={COLORS.grayText} />
+        <Text style={styles.bannerPlaceholderText}>{text}</Text>
+    </View>
+);
 
 const getFirebaseToken = async () => {
     const auth = getAuth();
@@ -46,6 +75,14 @@ const mapApiToGroupDetail = (group) => {
     const membersTotal = group.MEMBER_COUNT ? group.MEMBER_COUNT.toLocaleString('es-ES') : '0';
     const currentFirebaseUid = getAuth().currentUser?.uid;
 
+    const bannerUri = group.BANNER_IMG_URL
+        ? `${BASE_URL}${group.BANNER_IMG_URL}`
+        : null; 
+
+    const profilePicUri = group.PROFILE_IMG_URL
+        ? `${BASE_URL}${group.PROFILE_IMG_URL}`
+        : null; 
+
     return {
         id: group.ID_GROUP,
         name: group.GROUP_NAME_DSC,
@@ -53,12 +90,8 @@ const mapApiToGroupDetail = (group) => {
         communityType: group.COMMUNITY_TYPE_DSC,
         membersTotal: membersTotal,
         isStreamer: isStreamer,
-        bannerUri: group.BANNER_IMG_URL
-            ? `${BASE_URL}${group.BANNER_IMG_URL}`
-            : `https://picsum.photos/600/200?random=${group.ID_GROUP}_bg`,
-        profilePicUri: group.PROFILE_IMG_URL
-            ? `${BASE_URL}${group.PROFILE_IMG_URL}`
-            : `https://picsum.photos/100/100?random=${group.ID_GROUP}_pfp`,
+        bannerUri: bannerUri,
+        profilePicUri: profilePicUri,
         membersOnline: isStreamer ? '3,400' : '1,234',
         isLive: isLive,
         streamLink: isStreamer ? group.streamerInfo.STREAM_URL : null,
@@ -330,6 +363,7 @@ const showAlert = (title, message, buttons = []) => {
     }
 };
 
+
 const GroupDetailView = ({ navigation, route }) => {
     const [posts, setPosts] = useState([]);
     const [newPostText, setNewPostText] = useState("");
@@ -347,8 +381,8 @@ const GroupDetailView = ({ navigation, route }) => {
 
     const groupId = route.params?.groupData?.id;
     const firebaseUid = getAuth().currentUser?.uid;
+    const currentUsername = getAuth().currentUser?.displayName || 'Tú'; 
 
-    // FUNCIONES FALTANTES - ESTAS SON LAS QUE CAUSABAN EL ERROR
     const fetchGroupDetail = useCallback(async () => {
         if (!groupId) {
             setLoading(false);
@@ -643,11 +677,7 @@ const GroupDetailView = ({ navigation, route }) => {
                 id: m.user.ID_USER,
                 username: m.user.USERNAME_DSC,
                 role: m.MEMBER_ROLE_DSC,
-                avatarUri: m.user.PROFILE_PIC
-                    ? m.user.PROFILE_PIC.startsWith(BASE_URL)
-                        ? m.user.PROFILE_PIC
-                        : `${BASE_URL}${m.user.PROFILE_PIC.replace('src/public', '')}`
-                    : `https://picsum.photos/40/40?random=${m.user.ID_USER}`,
+                avatarUri: m.user.PROFILE_PIC ? `${BASE_URL}${m.user.PROFILE_PIC.replace('src/public', '')}` : null, // CAMBIO: Usar null
                 isOnline: false,
                 isCurrentUser: m.user.FIREBASE_UID === firebaseUid,
             }));
@@ -716,11 +746,14 @@ const GroupDetailView = ({ navigation, route }) => {
 
     const renderContent = () => {
         if (!groupData) return null;
+        
+        const userInitials = getInitials(currentUsername);
+
         if (activeTab === 'Publicaciones') {
             return (
                 <View>
                     <View style={styles.createPostContainer}>
-                        <Text style={styles.userAvatarInitial}>TU</Text>
+                        <InitialFallback initials={userInitials} style={styles.userAvatarInitialContainer} textStyle={styles.userAvatarInitialText} />
                         <TextInput
                             placeholder="¿Qué quieres compartir con el grupo?"
                             placeholderTextColor={COLORS.grayText}
@@ -778,7 +811,6 @@ const GroupDetailView = ({ navigation, route }) => {
                                         setPosts(prev => [data.post, ...prev]);
                                         setNewPostText("");
                                         setImageUri(null);
-                                        // Refrescar posts después de crear uno nuevo
                                         setTimeout(() => {
                                             fetchGroupPosts();
                                         }, 2000);
@@ -822,16 +854,21 @@ const GroupDetailView = ({ navigation, route }) => {
                                 imageUri = constructImageUri(post.images);
                             }
 
+                            const postUserAvatarUri = post.user?.PROFILE_PIC ? `${BASE_URL}${post.user.PROFILE_PIC}` : null; 
+                            const postUsername = post.user?.USERNAME_DSC || post.username || "Miembro";
+                            const postUserInitials = getInitials(postUsername);
+
                             return (
                                 <GroupPostItem
                                     key={post.ID_GROUP_POST || post.id}
                                     post={{
                                         id: post.ID_GROUP_POST || post.id,
-                                        username: post.user?.USERNAME_DSC || post.username || "Miembro",
+                                        username: postUsername,
                                         time: post.POST_DATE ? new Date(post.POST_DATE).toLocaleString() : (post.time || ''),
                                         content: post.POST_CONTENT_DSC || post.content,
                                         imageUri: imageUri,
-                                        userAvatarUri: post.user?.PROFILE_PIC ? `${BASE_URL}${post.user.PROFILE_PIC}` : `https://picsum.photos/50/50?random=${post.ID_GROUP_POST || post.id}`,
+                                        userAvatarUri: postUserAvatarUri, 
+                                        userInitials: postUserInitials,
                                         likes: post.likesCount || post.likes || 0,
                                         comments: post.commentsCount || post.comments || 0,
                                     }}
@@ -857,7 +894,10 @@ const GroupDetailView = ({ navigation, route }) => {
                         membersList.map(member => (
                             <MemberListingRow
                                 key={member.id}
-                                member={member}
+                                member={{
+                                    ...member,
+                                    initials: getInitials(member.username), 
+                                }}
                                 onPressProfile={() => showAlert("Ver Perfil", `Navegando al perfil de ${member.username}`)}
                                 userRole={userRole}
                                 onAdminAction={handleMemberAction}
@@ -917,6 +957,8 @@ const GroupDetailView = ({ navigation, route }) => {
         );
     }
 
+    const groupInitials = getInitials(groupData.name);
+
     return (
         <SafeAreaView style={styles.container}>
             <AvisarDirectoModal
@@ -934,13 +976,22 @@ const GroupDetailView = ({ navigation, route }) => {
 
             <ScrollView showsVerticalScrollIndicator={false}>
                 <View style={styles.headerContainer}>
-                    <Image source={{ uri: groupData.bannerUri }} style={styles.bannerImage} />
+                    {groupData.bannerUri ? (
+                        <Image source={{ uri: groupData.bannerUri }} style={styles.bannerImage} />
+                    ) : (
+                        <BannerPlaceholder text="Ingresa una imagen de Banner" />
+                    )}
+                    
                     <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
                         <Ionicons name="arrow-back" size={24} color={COLORS.white} />
                     </TouchableOpacity>
                     <View style={styles.groupInfoBox}>
                         <View style={styles.groupHeaderRow}>
-                            <Image source={{ uri: groupData.profilePicUri }} style={styles.profileImage} />
+                            {groupData.profilePicUri ? (
+                                <Image source={{ uri: groupData.profilePicUri }} style={styles.profileImage} />
+                            ) : (
+                                <InitialFallback initials={groupInitials} style={styles.profileImageInitial} textStyle={styles.profileImageInitialText} />
+                            )}
                             <View style={styles.titleContainer}>
                                 <Text style={styles.groupTitleText}>{groupData.name}</Text>
                                 <Text style={styles.groupSubtitleText}>{groupData.communityType}</Text>
@@ -982,7 +1033,7 @@ const GroupDetailView = ({ navigation, route }) => {
                                             <Text style={styles.actionText}>Abandonar</Text>
                                         </TouchableOpacity>
                                     )}
-
+                                    {/*
                                     <TouchableOpacity style={styles.actionIcon}>
                                         <Ionicons name="notifications-outline" size={20} color={COLORS.white} />
                                         <Text style={styles.actionText}>Notificaciones</Text>
@@ -990,7 +1041,7 @@ const GroupDetailView = ({ navigation, route }) => {
                                     <TouchableOpacity style={styles.actionIcon}>
                                         <Ionicons name="share-social-outline" size={20} color={COLORS.white} />
                                         <Text style={styles.actionText}>Compartir</Text>
-                                    </TouchableOpacity>
+                                    </TouchableOpacity>*/}
 
                                     {userRole === 'ADMIN' && (
                                         <TouchableOpacity
@@ -1038,7 +1089,23 @@ const GroupDetailView = ({ navigation, route }) => {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: COLORS.darkBackground },
     headerContainer: { backgroundColor: COLORS.darkBackground },
+
     bannerImage: { width: '100%', height: 180, backgroundColor: COLORS.inputBackground, },
+    bannerPlaceholder: {
+        width: '100%',
+        height: 180,
+        backgroundColor: COLORS.inputBackground,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderBottomLeftRadius: 5,
+        borderBottomRightRadius: 5,
+    },
+    bannerPlaceholderText: {
+        color: COLORS.grayText,
+        marginTop: 5,
+        fontSize: 14,
+    },
+
     backButton: { position: 'absolute', top: 40, left: 15, zIndex: 10, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 5, },
     groupInfoBox: { paddingHorizontal: 15, paddingTop: 10, },
     groupHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, marginTop: -50, },
@@ -1047,7 +1114,25 @@ const styles = StyleSheet.create({
     groupSubtitleText: { color: COLORS.grayText, fontSize: 14, fontWeight: '500', },
     groupDescriptionText: { color: COLORS.white, fontSize: 14, fontWeight: '400', marginBottom: 15, marginTop: 5, lineHeight: 20, },
     groupContentRow: { flexDirection: 'row', alignItems: 'flex-start', },
+    
     profileImage: { width: 80, height: 80, borderRadius: 40, borderWidth: 3, borderColor: COLORS.darkerBackground, backgroundColor: COLORS.inputBackground, marginRight: 10, },
+    profileImageInitial: {
+        width: 80, 
+        height: 80, 
+        borderRadius: 40, 
+        borderWidth: 3, 
+        borderColor: COLORS.darkerBackground, 
+        backgroundColor: COLORS.inputBackground, 
+        marginRight: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    profileImageInitialText: {
+        color: COLORS.white, 
+        fontWeight: 'bold', 
+        fontSize: 30,
+    },
+
     statsAndActions: { flex: 1, },
     statsRow: { marginBottom: 8, },
     statText: { color: COLORS.grayText, fontSize: 13, fontWeight: '600', },
@@ -1070,7 +1155,23 @@ const styles = StyleSheet.create({
     activeTabText: { color: COLORS.white, fontWeight: '700', },
     contentArea: { paddingHorizontal: 15, paddingTop: 10, },
     createPostContainer: { backgroundColor: COLORS.darkerBackground, borderRadius: 10, padding: 10, marginBottom: 15, },
-    userAvatarInitial: { position: 'absolute', top: 15, left: 15, width: 30, height: 30, borderRadius: 15, backgroundColor: COLORS.purple, textAlign: 'center', lineHeight: 30, color: COLORS.white, fontWeight: '700', fontSize: 14, },
+    
+    userAvatarInitialContainer: {
+        position: 'absolute', 
+        top: 15, 
+        left: 15, 
+        width: 30, 
+        height: 30, 
+        borderRadius: 15, 
+        backgroundColor: COLORS.purple, 
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    userAvatarInitialText: {
+        color: COLORS.white, 
+        fontWeight: '700', 
+        fontSize: 14,
+    },
     postInput: { minHeight: 60, paddingLeft: 50, color: COLORS.white, fontSize: 15, paddingTop: 5, paddingBottom: 5, },
     postActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, borderTopWidth: 1, borderTopColor: COLORS.inputBackground, marginTop: 5, },
     imageButton: { flexDirection: 'row', alignItems: 'center', padding: 5, },
@@ -1117,6 +1218,15 @@ const styles = StyleSheet.create({
         color: COLORS.white,
         fontWeight: '700',
         fontSize: 14,
+    },
+
+    initialFallbackContainer: {
+        backgroundColor: COLORS.inputBackground, 
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    initialFallbackText: {
+        color: COLORS.white,
     },
 });
 

@@ -21,7 +21,7 @@ import { auth, googleProvider } from "../firebaseConfig.js";
 import { createUserWithEmailAndPassword, signInWithCredential, GoogleAuthProvider, OAuthProvider } from "firebase/auth";
 import * as Google from "expo-auth-session/providers/google";
 import { makeRedirectUri } from "expo-auth-session";
-
+import { BASE_URL } from '@env';
 
 export default function RegisterScreen({ navigation }) {
 
@@ -64,7 +64,7 @@ export default function RegisterScreen({ navigation }) {
             const user = userCredential.user;
             const idToken = await user.getIdToken();
 
-            fetch("http://192.168.0.6:8080/api/users/register", {
+            fetch(`${BASE_URL}/api/users/register`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

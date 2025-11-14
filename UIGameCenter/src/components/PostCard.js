@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Dimensions, Platform, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import COLORS from '../constants/Colors';
+import { BASE_URL } from '@env';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -141,7 +142,7 @@ const PostCard = ({ post, onPress, currentUser, onDelete }) => {
                   activeOpacity={0.9}
                 >
                   <Image
-                    source={{ uri: `http://192.168.0.6:8080${uri}` }}
+                    source={{ uri: `${BASE_URL}${uri}` }}
                     style={styles.mainImage}
                     resizeMode="cover"
                   />
@@ -168,7 +169,7 @@ const PostCard = ({ post, onPress, currentUser, onDelete }) => {
           <View style={styles.authorInfo}>
             {user?.PROFILE_PIC ? (
               <Image 
-                source={{ uri: `http://192.168.0.6:8080${user.PROFILE_PIC}` }} 
+                source={{ uri: `${BASE_URL}${user.PROFILE_PIC}` }} 
                 style={styles.authorAvatar} 
               />
             ) : (
