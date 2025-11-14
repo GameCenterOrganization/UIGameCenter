@@ -15,6 +15,7 @@ import GroupDiscoveryScreen from '../screens/GroupDiscoveryScreen';
 import GroupDetailView from '../screens/GroupDetailView';
 import CreateGroupScreen from '../screens/CreateGroupScreen';
 import EditGroupScreen from '../screens/EditGroupScreen';
+import GameDetailsScreen from '../components/GameDetailsScreen';
 
 // === EVENTOS ===
 import ProgramarEventoScreen from '../screens/CreateEventScreen'; // ← NUEVA PANTALLA
@@ -40,13 +41,10 @@ const AppNavigator = () => {
         {/* === GRUPOS === */}
         <Stack.Screen name="GroupDetail" component={GroupDetailView} />
         <Stack.Screen name="CreateGroup" component={CreateGroupScreen} />
-        <Stack.Screen name="EditGroupScreen" component={EditGroupScreen} />
-
-        {/* === EVENTOS === */}
-        <Stack.Screen name="ProgramarEvento" component={ProgramarEventoScreen} />
-        <Stack.Screen name="EventDetail" component={EventDetailScreen} />
-
-        {/* === USUARIO PROTEGIDO === */}
+       <Stack.Screen name="EditGroupScreen" component={EditGroupScreen} />
+        <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
+        <Stack.Screen name="GameDetails" component={GameDetailsScreen} />
+    
         <Stack.Screen name="Profile">
           {props => (
             <ProtectedRoute>

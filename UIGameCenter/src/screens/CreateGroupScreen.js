@@ -4,8 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { getAuth } from 'firebase/auth'; 
 import COLORS from '../constants/Colors'; 
-
-const API_BASE_URL = 'http://localhost:8080'; 
+import { BASE_URL } from '@env';
 
 const TYPE_JUEGO = 'GAME'; 
 const TYPE_STREAMER = 'STREAMER';
@@ -138,7 +137,7 @@ const CreateGroupScreen = ({ navigation, route }) => {
                 hasBannerFile: Platform.OS === 'web' ? !!bannerImageFile?.file : !!bannerImageFile,
             });
 
-            const response = await fetch(`${API_BASE_URL}/api/group/register`, {
+            const response = await fetch(`${BASE_URL}/api/group/register`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,

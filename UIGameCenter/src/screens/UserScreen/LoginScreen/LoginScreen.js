@@ -23,6 +23,7 @@ import { auth } from "../firebaseConfig";
 import * as Google from "expo-auth-session/providers/google";
 import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
 import { makeRedirectUri } from "expo-auth-session";
+import { BASE_URL } from '@env';
 
 export default function LoginScreen({ navigation }) {
   const { width } = useWindowDimensions();
@@ -50,7 +51,7 @@ const onSubmit = async (data) => {
     console.log("Usuario Firebase:", user.email);
 
     
-    fetch("http://localhost:8080/api/users/profile", {
+    fetch(`${BASE_URL}/api/users/profile`, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${idToken}`,

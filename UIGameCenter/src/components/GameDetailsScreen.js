@@ -14,8 +14,7 @@ import {
 } from 'react-native';
 import { FontAwesome, Ionicons } from '@expo/vector-icons'; 
 import axios from 'axios';
-
-const BASE_URL = 'http://192.168.0.6:3000'; 
+import { BASE_URL_GAME } from '@env';
 
 const { width, height } = Dimensions.get('window');
 
@@ -125,7 +124,7 @@ const GameDetailsScreen = ({ route, navigation }) => {
       }
       
       try {
-        const response = await axios.get(`${BASE_URL}/api/games/details/${gameId}`, {
+        const response = await axios.get(`${BASE_URL_GAME}/api/games/details/${gameId}`, {
           params: { name: gameName }
         });
         setFullGameData(response.data.data);

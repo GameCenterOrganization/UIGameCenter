@@ -17,6 +17,7 @@ import Header from '../components/Header';
 import Categories from '../components/Categories';
 import GameCard from '../components/GameCard';
 import FloatingChat from '../components/FloatingChat';
+import { BASE_URL_GAME } from '@env';
 const MAX_CONTENT_WIDTH = 1200; 
 
 const useDebounce = (value, delay) => {
@@ -32,7 +33,7 @@ const useDebounce = (value, delay) => {
   return debouncedValue;
 };
 
-const API_BASE_URL = 'http://localhost:3000/api/games';
+const API_BASE_URL = `${BASE_URL_GAME}/api/games`;
 
 const HomeScreen = () => {
   const { width } = useWindowDimensions(); 
@@ -435,7 +436,10 @@ const HomeScreen = () => {
                 keyExtractor={(item) => item.id}
                 numColumns={numColumns}
                 renderItem={renderGameItem}
-                columnWrapperStyle={Platform.OS === 'web' ? styles.webColumnWrapper : styles.columnWrapper}
+                {...(numColumns > 1 && {
+                  columnWrapperStyle:
+                    Platform.OS === 'web' ? styles.webColumnWrapper : styles.columnWrapper,
+                })}
                 contentContainerStyle={styles.flatListContent}
                 showsVerticalScrollIndicator={true}
                 removeClippedSubviews={false}

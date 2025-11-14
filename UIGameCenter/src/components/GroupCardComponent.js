@@ -4,8 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import COLORS from '../constants/Colors';
 import axios from 'axios';
 import { getAuth } from 'firebase/auth';
+import { BASE_URL } from '@env';
 
-const BASE_URL = "http://localhost:8080";
 const JOIN_API_URL = `${BASE_URL}/api/group`;
 
 const getFirebaseToken = async () => {

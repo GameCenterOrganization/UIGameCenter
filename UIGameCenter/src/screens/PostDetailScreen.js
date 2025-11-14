@@ -5,16 +5,17 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { getAuth } from 'firebase/auth';
 import COLORS from '../constants/Colors';
+import { BASE_URL } from '@env';
 
 const { width } = Dimensions.get('window');
 
 const getApiBaseUrl = () => {
   if (Platform.OS === 'android') {
-    return 'http://localhost:8080/api';
+    return `${BASE_URL}/api`;
   } else if (Platform.OS === 'ios') {
-    return 'http://localhost:8080/api';
+    return `${BASE_URL}/api`;
   } else {
-    return 'http://localhost:8080/api';
+    return `${BASE_URL}/api`;
   }
 };
 
@@ -24,11 +25,11 @@ const COMMENTS_URL = `${API_BASE_URL}/comments`;
 
 const getImageBaseUrl = () => {
   if (Platform.OS === 'android') {
-    return 'http://localhost:8080';
+    return `${BASE_URL}`;
   } else if (Platform.OS === 'ios') {
-    return 'http://localhost:8080';
+    return `${BASE_URL}`;
   } else {
-    return 'http://localhost:8080';
+    return `${BASE_URL}`;
   }
 };
 
