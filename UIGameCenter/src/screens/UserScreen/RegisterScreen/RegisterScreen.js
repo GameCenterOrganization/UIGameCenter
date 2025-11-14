@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
     View,
@@ -17,33 +16,44 @@ import { LinearGradient } from "expo-linear-gradient";
 import { MaterialCommunityIcons, FontAwesome, Feather } from "@expo/vector-icons";
 import { useForm, Controller } from "react-hook-form";
 import { RegisterStyle } from "./RegisterStyle.js";
-import { auth, googleProvider } from "../firebaseConfig.js";
+import { auth } from "../firebaseConfig.js";
 import { createUserWithEmailAndPassword, signInWithCredential, GoogleAuthProvider, OAuthProvider } from "firebase/auth";
 import * as Google from "expo-auth-session/providers/google";
 import { makeRedirectUri } from "expo-auth-session";
 import { BASE_URL } from '@env';
+
+import { showMessage } from "react-native-flash-message";
+import COLORS from "../../../constants/Colors";
+
+const showAlert = (title, message) => {
+    showMessage({
+        message: title,
+        description: message,
+        type: "default",
+        backgroundColor: COLORS.darkerBackground,
+        color: COLORS.white,
+        textStyle: { fontWeight: "bold" },
+        titleStyle: { fontSize: 16, fontWeight: "800" },
+        duration: 3500,
+        icon: "danger",
+        style: { paddingTop: 40 },
+    });
+};
 
 export default function RegisterScreen({ navigation }) {
 
     const { width } = useWindowDimensions();
     const isNarrow = width < 480;
 
-    // Form / UI states
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    const {
-        control,
-        handleSubmit,
-        watch,
-        trigger,
-        formState: { errors },
-    } = useForm({
+
+    const { control, handleSubmit, watch, formState: { errors } } = useForm({
         mode: "onChange",
         defaultValues: { email: "", password: "", confirmPassword: "" },
     });
 
     const passwordValue = watch("password");
-
 
     const getPasswordStrength = (password) => {
         let score = 0;
@@ -73,7 +83,6 @@ export default function RegisterScreen({ navigation }) {
                 body: JSON.stringify({
                     firebaseUid: user.uid,
                     email: user.email,
-                
                     username: data.username,
                     firstName: data.firstName,
                     lastName: data.lastName,
@@ -85,15 +94,25 @@ export default function RegisterScreen({ navigation }) {
                 .then(res => res.json())
                 .then(data => {
                     console.log("Respuesta del backend:", data);
+                    showAlert("Registro exitoso", "Tu cuenta ha sido creada correctamente.");
                 })
                 .catch(err => {
                     console.error("Error enviando datos al backend:", err);
+                    showAlert("Error de servidor", "Hubo un problema guardando tus datos.");
                 });
 
             navigation.navigate("Home");
+
         } catch (error) {
             console.error("Error al registrar usuario:", error.message);
-            alert(error.message);
+
+            let msg = "No se pudo crear tu cuenta.";
+            if (error.code === "auth/email-already-in-use") msg = "Este correo ya está en uso.";
+            if (error.code === "auth/invalid-email") msg = "El formato de email es incorrecto.";
+            if (error.code === "auth/weak-password") msg = "La contraseña es demasiado débil.";
+
+            showAlert("Error de registro", msg);
+
         } finally {
             setLoading(false);
         }
@@ -106,20 +125,20 @@ export default function RegisterScreen({ navigation }) {
         redirectUri: makeRedirectUri({ useProxy: true }),
     });
 
-
     useEffect(() => {
         if (response?.type === "success") {
             const { id_token } = response.params;
-
             const credential = GoogleAuthProvider.credential(id_token);
+
             signInWithCredential(auth, credential)
                 .then((userCredential) => {
                     console.log("Usuario Google registrado:", userCredential.user);
+                    showAlert("Bienvenido", "Registro exitoso con Google");
                     navigation.navigate("Home");
                 })
                 .catch((err) => {
                     console.error("Error autenticando con Firebase:", err);
-                    alert(err.message);
+                    showAlert("Error Google", err.message);
                 });
         }
     }, [response]);
@@ -133,25 +152,25 @@ export default function RegisterScreen({ navigation }) {
             const provider = new OAuthProvider("github.com");
             provider.addScope("user:email");
 
-
             const result = await signInWithCredential(auth, provider);
             console.log("Usuario GitHub:", result.user);
-            navigation.navigate("Home");
 
+            showAlert("GitHub", "Inicio con GitHub pendiente de ajuste");
+            navigation.navigate("Home");
 
         } catch (err) {
             console.error(err);
-            alert(err.message);
+            showAlert("Error GitHub", err.message);
         }
     };
 
     const onLogin = () => {
-        alert("Ir a iniciar sesion");
+        showAlert("Ir a iniciar sesión", "Redirigiendo a Login...");
         navigation.navigate("Login");
     };
 
     const onGuest = () => {
-        alert("Continuar como invitado ");
+        showAlert("Modo Invitado", "Entrando sin cuenta...");
         navigation.navigate("Home");
     };
 
@@ -160,7 +179,6 @@ export default function RegisterScreen({ navigation }) {
             colors={["#0f1220", "#12131e"]}
             style={RegisterStyle.container}
         >
-
             <ScrollView
                 contentContainerStyle={[
                     RegisterStyle.scrollContainer,
@@ -168,7 +186,6 @@ export default function RegisterScreen({ navigation }) {
                 ]}
                 keyboardShouldPersistTaps="handled"
             >
-                {/*promotional banner - hidden on mobile screens */}
                 {!isNarrow && (
                     <View style={RegisterStyle.leftPane}>
                         <View style={RegisterStyle.logoRow}>
@@ -187,10 +204,9 @@ export default function RegisterScreen({ navigation }) {
                         </Text>
 
                         <View style={RegisterStyle.previewImageContainer}>
-
                             <Image
                                 source={{
-                                    uri: "https://images.unsplash.com/photo-1563089145-599997674d42?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+                                    uri: "https://images.unsplash.com/photo-1563089145-599997674d42?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0"
                                 }}
                                 style={RegisterStyle.previewImage}
                                 resizeMode="cover"
@@ -214,7 +230,6 @@ export default function RegisterScreen({ navigation }) {
                     </View>
                 )}
 
-                {/* Card (login) */}
                 <KeyboardAvoidingView
                     behavior={Platform.OS === "ios" ? "padding" : "height"}
                     style={[RegisterStyle.cardWrapper, isNarrow && { width: "92%" }]}
@@ -231,9 +246,9 @@ export default function RegisterScreen({ navigation }) {
                             <Text style={RegisterStyle.cardSubtitle}>Bienvenido a nuestra plataforma, gamer</Text>
                         </View>
 
-                        {/* Form */}
+
                         <View style={RegisterStyle.form}>
-                            {/* Email */}
+
                             <Text style={RegisterStyle.inputLabel}>Email</Text>
                             <Controller
                                 control={control}
@@ -266,7 +281,6 @@ export default function RegisterScreen({ navigation }) {
                                 )}
                             />
 
-                            {/* Password */}
                             <Text style={[RegisterStyle.inputLabel, { marginTop: 12 }]}>Contraseña</Text>
                             <Controller
                                 control={control}
@@ -293,7 +307,9 @@ export default function RegisterScreen({ navigation }) {
                                                 <Feather name={showPassword ? "eye-off" : "eye"} size={18} color="#9aa0a6" />
                                             </Pressable>
                                         </View>
+
                                         {errors.password && <Text style={RegisterStyle.errorText}>{errors.password.message}</Text>}
+
                                         {value.length > 0 && (
                                             <Text style={{ color: getPasswordStrength(value).color }}>
                                                 Seguridad: {getPasswordStrength(value).label}
@@ -303,7 +319,6 @@ export default function RegisterScreen({ navigation }) {
                                 )}
                             />
 
-                            {/* Confirm Password */}
                             <Text style={[RegisterStyle.inputLabel, { marginTop: 12 }]}>Confirmar Contraseña</Text>
                             <Controller
                                 control={control}
@@ -327,15 +342,11 @@ export default function RegisterScreen({ navigation }) {
                                                 autoCapitalize="none"
                                             />
                                         </View>
-
                                         {errors.confirmPassword && <Text style={RegisterStyle.errorText}>{errors.confirmPassword.message}</Text>}
                                     </View>
                                 )}
                             />
 
-
-
-                            {/* Register button */}
                             <TouchableOpacity
                                 style={RegisterStyle.loginButton}
                                 onPress={handleSubmit(onSubmit)}
@@ -371,14 +382,8 @@ export default function RegisterScreen({ navigation }) {
                                     <FontAwesome name="google" size={18} color="#7a7a7a" />
                                     <Text style={RegisterStyle.socialText}>Google</Text>
                                 </TouchableOpacity>
-
-                                {/*   <TouchableOpacity style={RegisterStyle.socialBtn} onPress={onGithub}>
-                                    <FontAwesome name="github" size={18} color="#7a7a7a" />
-                                    <Text style={RegisterStyle.socialText}>GitHub</Text>
-                                </TouchableOpacity>}*/}
                             </View>
 
-                            {/* Links */}
                             <View style={RegisterStyle.linksRow}>
                                 <TouchableOpacity onPress={onLogin}>
                                     <Text style={RegisterStyle.linkPrimary}>Ya tienes cuenta? Inicia sesión aquí</Text>
@@ -388,6 +393,7 @@ export default function RegisterScreen({ navigation }) {
                                     <Text style={RegisterStyle.linkSecondary}>Continuar como invitado</Text>
                                 </TouchableOpacity>
                             </View>
+
                         </View>
                     </LinearGradient>
                 </KeyboardAvoidingView>
@@ -395,4 +401,3 @@ export default function RegisterScreen({ navigation }) {
         </LinearGradient>
     );
 }
-

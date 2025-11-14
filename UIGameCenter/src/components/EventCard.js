@@ -3,7 +3,7 @@ import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import COLORS from '../constants/Colors';
-
+import { BASE_URL } from '@env';
 const EventCard = ({ 
     event, 
     onPress, 
@@ -23,7 +23,7 @@ const EventCard = ({
             <Image 
                 source={{ 
                     uri: event.IMG_URL 
-                        ? `http://localhost:8080${event.IMG_URL}` 
+                        ? `${BASE_URL}${event.IMG_URL}` 
                         : 'https://via.placeholder.com/300' 
                 }} 
                 style={styles.image} 
@@ -72,8 +72,8 @@ const EventCard = ({
                     <Image 
                         source={{ 
                             uri: event.creator?.PROFILE_PIC 
-                                ? `http://localhost:8080${event.creator.PROFILE_PIC}` 
-                                : `http://localhost:8080/images/event/default_avatar.jpg` 
+                                ? `${BASE_URL}${event.creator.PROFILE_PIC}` 
+                                : `${BASE_URL}/images/event/default_avatar.jpg` 
                         }} 
                         style={styles.creatorImg} 
                     />
