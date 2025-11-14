@@ -10,6 +10,7 @@ import axios from 'axios';
 import COLORS from '../constants/Colors';
 import GroupPostItem from '../components/GroupPostItem';
 import MemberListingRow from '../components/MemberListingRow';
+import EventCard from '../components/EventCard';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import * as ImagePicker from 'expo-image-picker';
 import { BASE_URL } from '@env';
@@ -157,10 +158,7 @@ const AvisarDirectoModal = ({ isVisible, onClose }) => {
             padding: 35,
             alignItems: 'center',
             shadowColor: '#000',
-            shadowOffset: {
-                width: 0,
-                height: 2,
-            },
+            shadowOffset: { width: 0, height: 2 },
             shadowOpacity: 0.25,
             shadowRadius: 4,
             elevation: 5,
@@ -181,10 +179,7 @@ const AvisarDirectoModal = ({ isVisible, onClose }) => {
             marginBottom: 20,
             paddingVertical: 10,
         },
-        toggleText: {
-            color: COLORS.grayText,
-            fontSize: 16,
-        },
+        toggleText: { color: COLORS.grayText, fontSize: 16 },
         input: {
             width: '100%',
             padding: 12,
@@ -228,23 +223,12 @@ const AvisarDirectoModal = ({ isVisible, onClose }) => {
             borderWidth: 1,
             borderColor: COLORS.grayText,
         },
-        programButton: {
-            backgroundColor: COLORS.purple,
-        },
-        textStyle: {
-            color: COLORS.white,
-            textAlign: 'center',
-            fontWeight: '600',
-        },
+        programButton: { backgroundColor: COLORS.purple },
+        textStyle: { color: COLORS.white, textAlign: 'center', fontWeight: '600' },
     });
 
     return (
-        <Modal
-            animationType="slide"
-            transparent={true}
-            visible={isVisible}
-            onRequestClose={onClose}
-        >
+        <Modal animationType="slide" transparent={true} visible={isVisible} onRequestClose={onClose}>
             <View style={modalStyles.centeredView}>
                 <View style={modalStyles.modalView}>
                     <Text style={modalStyles.modalTitle}>
@@ -271,16 +255,13 @@ const AvisarDirectoModal = ({ isVisible, onClose }) => {
 
                     {!isLiveNow && (
                         <TouchableOpacity style={modalStyles.dateButton}>
-                            <Ionicons name="calendar-outline" size={20} color={COLORS.purple} />
+                            <Ionicons name="calendar-outlineFirst" size={20} color={COLORS.purple} />
                             <Text style={modalStyles.dateButtonText}>Seleccionar Fecha y Hora</Text>
                         </TouchableOpacity>
                     )}
 
                     <View style={modalStyles.buttonRow}>
-                        <TouchableOpacity
-                            style={[modalStyles.button, modalStyles.cancelButton]}
-                            onPress={onClose}
-                        >
+                        <TouchableOpacity style={[modalStyles.button, modalStyles.cancelButton]} onPress={onClose}>
                             <Text style={modalStyles.textStyle}>Cancelar</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -299,13 +280,7 @@ const AvisarDirectoModal = ({ isVisible, onClose }) => {
     );
 };
 
-const AdminActionModal = ({
-    isVisible,
-    onClose,
-    targetMember,
-    onRemove,
-    onRoleChange
-}) => {
+const AdminActionModal = ({ isVisible, onClose, targetMember, onRemove, onRoleChange }) => {
     const [isRoleModalVisible, setIsRoleModalVisible] = useState(false);
     const rolesMenu = ["ADMIN", "MODERATOR", "MEMBER"];
 
@@ -317,17 +292,10 @@ const AdminActionModal = ({
     };
 
     return (
-        <Modal
-            animationType="slide"
-            transparent={true}
-            visible={isVisible}
-            onRequestClose={onClose}
-        >
+        <Modal animationType="slide" transparent={true} visible={isVisible} onRequestClose={onClose}>
             <View style={styles.centeredView}>
                 <View style={styles.modalView}>
-                    <Text style={styles.modalTitle}>
-                        Acciones para {targetMember.username}
-                    </Text>
+                    <Text style={styles.modalTitle}>Acciones para {targetMember.username}</Text>
 
                     <TouchableOpacity
                         style={[styles.modalButton, { backgroundColor: COLORS.purple, marginVertical: 5 }]}
@@ -401,16 +369,108 @@ const GroupDetailView = ({ navigation, route }) => {
     const [isAvisarModalVisible, setIsAvisarModalVisible] = useState(false);
     const [groupData, setGroupData] = useState(null);
     const [loading, setLoading] = useState(true);
-
     const [userRole, setUserRole] = useState(null);
     const [membersList, setMembersList] = useState([]);
-
     const [isActionModalVisible, setIsActionModalVisible] = useState(false);
     const [targetMember, setTargetMember] = useState(null);
+
+    const [groupEvents, setGroupEvents] = useState([]);
+    const [eventsLoading, setEventsLoading] = useState(false);
 
     const groupId = route.params?.groupData?.id;
     const firebaseUid = getAuth().currentUser?.uid;
     const currentUsername = getAuth().currentUser?.displayName || 'Tú'; 
+
+    const fetchGroupEvents = useCallback(async () => {
+    if (!groupId) return;
+    setEventsLoading(true);
+
+    try {
+        const token = await getFirebaseToken();
+        if (!token) {
+            console.warn("No hay token, no se puede autenticar");
+            setGroupEvents([]);
+            setEventsLoading(false);
+            return;
+        }
+
+        const res = await fetch(`${BASE_URL}/api/events/group/${groupId}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`, 
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!res.ok) {
+            const errorData = await res.json().catch(() => ({}));
+            throw new Error(errorData.message || "Error al cargar eventos del grupo");
+        }
+
+        const data = await res.json();
+        setGroupEvents(Array.isArray(data) ? data : data.events || []);
+    } catch (error) {
+        console.error("Error fetching group events:", error);
+        setGroupEvents([]);
+    } finally {
+        setEventsLoading(false);
+    }
+}, [groupId]);
+
+    const handleJoinEvent = async (eventId) => {
+        if (!firebaseUid) {
+            showAlert("Error", "Debes iniciar sesión");
+            return;
+        }
+
+        const token = await getFirebaseToken();
+        if (!token) {
+            showAlert("Error", "No autenticado");
+            return;
+        }
+
+        const event = groupEvents.find(e => e.ID_EVENT === eventId);
+        if (!event) return;
+
+        const currentUserUid = getAuth().currentUser?.uid;
+        const isOwner = event.creator?.FIREBASE_UID === currentUserUid;
+        const isJoined = event.participants?.some(p => p.ID_USER === event.creator?.ID_USER);
+
+        if (isOwner) {
+            showAlert("Información", "Eres el creador del evento");
+            return;
+        }
+
+        if (isJoined) {
+            showAlert("Información", `Ya estás inscrito en "${event.TITLE}"`);
+            return;
+        }
+
+        if (event.PARTICIPANTS >= event.PARTICIPANTS_LIMIT) {
+            showAlert("Lleno", "Este evento ya no tiene plazas");
+            return;
+        }
+
+        try {
+            const res = await fetch(`${BASE_URL}/api/events/join/${eventId}`, {
+                method: 'POST',
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                showAlert("Éxito", data.message || "Te has inscrito al evento");
+                fetchGroupEvents();
+            } else {
+                showAlert("Error", data.message || "No se pudo inscribir");
+            }
+        } catch (err) {
+            showAlert("Error", "Error de conexión");
+        }
+    };
 
     const fetchGroupDetail = useCallback(async () => {
         if (!groupId) {
@@ -423,9 +483,7 @@ const GroupDetailView = ({ navigation, route }) => {
         try {
             const response = await fetch(`${API_URL}/${groupId}`, {
                 method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
             });
 
             if (!response.ok) {
@@ -449,14 +507,8 @@ const GroupDetailView = ({ navigation, route }) => {
         if (!groupId) return;
         
         try {
-            console.log("=== OBTENIENDO POSTS ===");
-            console.log("URL:", `${API_URL}/${groupId}/posts`);
-            
             const res = await fetch(`${API_URL}/${groupId}/posts`);
             const data = await res.json();
-            
-            console.log("Respuesta completa:", JSON.stringify(data, null, 2));
-            console.log("Status:", res.status);
             
             if (!res.ok) {
                 console.error("Error fetching posts:", data);
@@ -464,7 +516,6 @@ const GroupDetailView = ({ navigation, route }) => {
             }
             
             if (Array.isArray(data.posts)) {
-                console.log("Número de posts recibidos:", data.posts.length);
                 setPosts(data.posts);
             }
         } catch (err) {
@@ -546,7 +597,6 @@ const GroupDetailView = ({ navigation, route }) => {
                     text: "Abandonar",
                     style: "destructive",
                     onPress: async () => {
-                        console.log("--> Intento de abandonar grupo iniciado.");
                         const token = await getFirebaseToken();
                         if (!token) {
                             showAlert("Error de Autenticación", "No se pudo obtener el token de autenticación. Inténtalo de nuevo.", 'error');
@@ -555,11 +605,8 @@ const GroupDetailView = ({ navigation, route }) => {
 
                         try {
                             setLoading(true);
-
                             const response = await axios.post(`${MEMBER_API_URL}/${groupId}/leave`, {}, {
-                                headers: {
-                                    'Authorization': `Bearer ${token}`
-                                }
+                                headers: { 'Authorization': `Bearer ${token}` }
                             });
 
                             showAlert("Abandono Exitoso", response.data.message || "Has abandonado el grupo correctamente.", 'success');
@@ -584,7 +631,6 @@ const GroupDetailView = ({ navigation, route }) => {
 
                         } finally {
                             setLoading(false);
-                            console.log("--> Intento de abandonar grupo finalizado.");
                         }
                     }
                 }
@@ -682,7 +728,6 @@ const GroupDetailView = ({ navigation, route }) => {
 
         const token = await getFirebaseToken();
         if (!token) {
-            console.warn("Token no disponible, no se puede cargar la lista de miembros.");
             setMembersList([]);
             return;
         }
@@ -695,10 +740,7 @@ const GroupDetailView = ({ navigation, route }) => {
                     'Authorization': `Bearer ${token}`,
                 },
             });
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Error al cargar la lista de miembros');
-            }
+            if (!response.ok) throw new Error("Error al cargar miembros");
 
             const data = await response.json();
 
@@ -712,7 +754,6 @@ const GroupDetailView = ({ navigation, route }) => {
             }));
 
             setMembersList(mappedMembers);
-
         } catch (error) {
             console.error('Error fetching members list:', error);
             setMembersList([]);
@@ -723,9 +764,21 @@ const GroupDetailView = ({ navigation, route }) => {
         useCallback(() => {
             fetchGroupDetailAndRole();
             fetchGroupPosts();
+            if (activeTab === 'Eventos') {
+                fetchGroupEvents();
+            }
             return () => { };
-        }, [fetchGroupDetailAndRole, fetchGroupPosts])
+        }, [fetchGroupDetailAndRole, fetchGroupPosts, activeTab, fetchGroupEvents])
     );
+
+    useEffect(() => {
+        if (activeTab === 'Miembros') {
+            fetchMembersList();
+        }
+        if (activeTab === 'Eventos') {
+            fetchGroupEvents();
+        }
+    }, [activeTab, fetchMembersList, fetchGroupEvents]);
 
     const constructImageUri = (imageObj) => {
         if (!imageObj) return null;
@@ -737,23 +790,6 @@ const GroupDetailView = ({ navigation, route }) => {
         for (const field of possibleFields) {
             if (imageObj[field]) {
                 let url = imageObj[field];
-                if (!url.startsWith('http')) {
-                    if (url.startsWith('/')) {
-                        url = `${BASE_URL}${url}`;
-                    } else {
-                        url = `${BASE_URL}/${url}`;
-                    }
-                }
-                return url;
-            }
-        }
-
-        for (const [key, value] of Object.entries(imageObj)) {
-            if (typeof value === 'string' &&
-                (value.includes('image') || value.includes('img') ||
-                    value.includes('.jpg') || value.includes('.png') || value.includes('.jpeg') ||
-                    value.includes('/images/'))) {
-                let url = value;
                 if (!url.startsWith('http')) {
                     if (url.startsWith('/')) {
                         url = `${BASE_URL}${url}`;
@@ -854,7 +890,42 @@ const GroupDetailView = ({ navigation, route }) => {
                                 <Ionicons name="image-outline" size={24} color={COLORS.grayText} />
                                 <Text style={styles.imageButtonText}>Imagen</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.postButton} onPress={handlePostCreation}>
+                            <TouchableOpacity style={styles.postButton} onPress={async () => {
+                                if (!newPostText.trim()) return Alert.alert("Escribe algo para publicar");
+                                try {
+                                    const token = await getFirebaseToken();
+                                    if (!token) return Alert.alert("No autenticado", "Inicia sesión para publicar.");
+                                    const formData = new FormData();
+                                    formData.append("POST_CONTENT_DSC", newPostText);
+
+                                    if (imageUri) {
+                                        const response = await fetch(imageUri);
+                                        const blob = await response.blob();
+                                        const filename = `photo_${Date.now()}.jpg`;
+                                        formData.append("image", blob, filename);
+                                    }
+
+                                    const res = await fetch(`${API_URL}/${groupId}/posts`, {
+                                        method: 'POST',
+                                        headers: { "Authorization": `Bearer ${token}` },
+                                        body: formData,
+                                    });
+
+                                    const data = await res.json();
+
+                                    if (!res.ok) throw new Error(data.message || "Error creando publicación");
+                                    if (data.post) {
+                                        setPosts(prev => [data.post, ...prev]);
+                                        setNewPostText("");
+                                        setImageUri(null);
+                                        setTimeout(() => {
+                                            fetchGroupPosts();
+                                        }, 2000);
+                                    }
+                                } catch (err) {
+                                    Alert.alert("Error al publicar", err.message || "Revisa la consola");
+                                }
+                            }}>
                                 <Text style={styles.postButtonText}>Publicar</Text>
                             </TouchableOpacity>
                         </View>
@@ -919,6 +990,7 @@ const GroupDetailView = ({ navigation, route }) => {
                 </View>
             );
         }
+
         if (activeTab === 'Miembros') {
             return (
                 <View style={styles.membersListContainer}>
@@ -947,19 +1019,61 @@ const GroupDetailView = ({ navigation, route }) => {
                 </View>
             );
         }
+
         if (activeTab === 'Eventos') {
+            const streamerEvents = groupEvents.filter(event => 
+                event.creator?.ID_ROLE === 1 && event.ID_GROUP === groupId
+            );
+
+            const currentUserUid = getAuth().currentUser?.uid;
+
             return (
-                <View style={styles.placeholderContainer}>
-                    <Text style={styles.placeholderText}>Aquí se mostrarán los Eventos Programados del Grupo.</Text>
-                    <TouchableOpacity
-                        style={styles.eventActionButton}
-                        onPress={() => navigation.navigate('ProgramarEvento')}
-                    >
-                        <Text style={styles.eventActionButtonText}>Programar Evento</Text>
-                    </TouchableOpacity>
+                <View style={styles.contentArea}>
+                    {userRole === 'ADMIN' && (
+                        <View style={styles.actionButtonContainer}>
+                            <TouchableOpacity 
+                                style={styles.scheduleButton}
+                                onPress={() => navigation.navigate('CreateEvent', { groupId })}
+                            >
+                                <Text style={styles.scheduleButtonText}>+ Programar Evento</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+
+                    {eventsLoading ? (
+                        <ActivityIndicator size="large" color={COLORS.purple} style={{ marginTop: 30 }} />
+                    ) : streamerEvents.length > 0 ? (
+                        streamerEvents.map(event => {
+                            const currentUserUid = getAuth().currentUser?.uid;
+                            const isOwner = event.creator?.FIREBASE_UID === currentUserUid;
+                            const isJoined = event.participants?.some(p => p.FIREBASE_UID === currentUserUid);
+
+                            return (
+                                <EventCard
+                                    key={event.ID_EVENT}
+                                    event={event}
+                                    isJoined={isJoined}
+                                    isOwner={isOwner}
+                                    onPress={() => navigation.navigate('EventDetail', { event })}
+                                    onJoin={() => !isOwner && handleJoinEvent(event.ID_EVENT)}
+                                    onEdit={() => isOwner && navigation.navigate('CreateEvent', { 
+                                        eventToEdit: event, 
+                                        groupId 
+                                    })}
+                                />
+                            );
+                        })
+                    ) : (
+                        <View style={styles.placeholderContainer}>
+                            <Text style={styles.placeholderText}>
+                                No hay eventos programados en este grupo aún.
+                            </Text>
+                        </View>
+                    )}
                 </View>
             );
         }
+
         return null;
     };
 
@@ -979,13 +1093,7 @@ const GroupDetailView = ({ navigation, route }) => {
                 <Text style={{ color: COLORS.white, marginTop: 20, fontSize: 18, textAlign: 'center' }}>
                     Error al cargar el grupo.
                 </Text>
-                <Text style={{ color: COLORS.grayText, marginTop: 10, fontSize: 14, textAlign: 'center' }}>
-                    Verifica tu conexión.
-                </Text>
-                <TouchableOpacity
-                    onPress={() => navigation.goBack()}
-                    style={{ marginTop: 30, paddingVertical: 10, paddingHorizontal: 20, backgroundColor: COLORS.purple, borderRadius: 8 }}
-                >
+                <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 30, paddingVertical: 10, paddingHorizontal: 20, backgroundColor: COLORS.purple, borderRadius: 8 }}>
                     <Text style={{ color: COLORS.white, fontWeight: '700' }}>Volver</Text>
                 </TouchableOpacity>
             </SafeAreaView>
@@ -996,11 +1104,7 @@ const GroupDetailView = ({ navigation, route }) => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <AvisarDirectoModal
-                isVisible={isAvisarModalVisible}
-                onClose={() => setIsAvisarModalVisible(false)}
-            />
-
+            <AvisarDirectoModal isVisible={isAvisarModalVisible} onClose={() => setIsAvisarModalVisible(false)} />
             <AdminActionModal
                 isVisible={isActionModalVisible}
                 onClose={() => setIsActionModalVisible(false)}
@@ -1050,20 +1154,14 @@ const GroupDetailView = ({ navigation, route }) => {
                                     )}
 
                                     {groupData.isStreamer && groupData.streamLink && (
-                                        <TouchableOpacity
-                                            style={styles.streamActionButton}
-                                            onPress={handleStreamPress}
-                                        >
+                                        <TouchableOpacity style={styles.streamActionButton} onPress={handleStreamPress}>
                                             <Ionicons name="logo-twitch" size={20} color={COLORS.white} />
                                             <Text style={styles.actionText}>Ver Stream</Text>
                                         </TouchableOpacity>
                                     )}
 
                                     {userRole && (
-                                        <TouchableOpacity
-                                            style={[styles.actionIcon, { backgroundColor: COLORS.red }]}
-                                            onPress={handleLeaveGroup}
-                                        >
+                                        <TouchableOpacity style={[styles.actionIcon, { backgroundColor: COLORS.red }]} onPress={handleLeaveGroup}>
                                             <Ionicons name="exit-outline" size={20} color={COLORS.white} />
                                             <Text style={styles.actionText}>Abandonar</Text>
                                         </TouchableOpacity>
@@ -1079,20 +1177,14 @@ const GroupDetailView = ({ navigation, route }) => {
                                     </TouchableOpacity>*/}
 
                                     {userRole === 'ADMIN' && (
-                                        <TouchableOpacity
-                                            style={styles.actionIcon}
-                                            onPress={handleSettingsPress}
-                                        >
+                                        <TouchableOpacity style={styles.actionIcon} onPress={handleSettingsPress}>
                                             <Ionicons name="settings-outline" size={20} color={COLORS.white} />
                                             <Text style={styles.actionText}>Configuración</Text>
                                         </TouchableOpacity>
                                     )}
 
                                     {userRole === 'ADMIN' && groupData.isStreamer && (
-                                        <TouchableOpacity
-                                            style={styles.actionIcon}
-                                            onPress={() => setIsAvisarModalVisible(true)}
-                                        >
+                                        <TouchableOpacity style={styles.actionIcon} onPress={() => setIsAvisarModalVisible(true)}>
                                             <Ionicons name="calendar-outline" size={20} color={COLORS.white} />
                                             <Text style={styles.actionText}>Avisar Directo</Text>
                                         </TouchableOpacity>
@@ -1122,10 +1214,18 @@ const GroupDetailView = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: COLORS.darkBackground },
-    headerContainer: { backgroundColor: COLORS.darkBackground },
-
-    bannerImage: { width: '100%', height: 180, backgroundColor: COLORS.inputBackground, },
+    container: { 
+        flex: 1, 
+        backgroundColor: COLORS.darkBackground 
+    },
+    headerContainer: { 
+        backgroundColor: COLORS.darkBackground
+     },
+    bannerImage: { 
+        width: '100%', 
+        height: 180, 
+        backgroundColor: COLORS.inputBackground 
+    },
     bannerPlaceholder: {
         width: '100%',
         height: 180,
@@ -1141,16 +1241,62 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
 
-    backButton: { position: 'absolute', top: 40, left: 15, zIndex: 10, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 5, },
-    groupInfoBox: { paddingHorizontal: 15, paddingTop: 10, },
-    groupHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, marginTop: -50, },
-    titleContainer: { flex: 1, marginLeft: 10, },
-    groupTitleText: { color: COLORS.white, fontSize: 22, fontWeight: '900', marginBottom: 2, },
-    groupSubtitleText: { color: COLORS.grayText, fontSize: 14, fontWeight: '500', },
-    groupDescriptionText: { color: COLORS.white, fontSize: 14, fontWeight: '400', marginBottom: 15, marginTop: 5, lineHeight: 20, },
-    groupContentRow: { flexDirection: 'row', alignItems: 'flex-start', },
-    
-    profileImage: { width: 80, height: 80, borderRadius: 40, borderWidth: 3, borderColor: COLORS.darkerBackground, backgroundColor: COLORS.inputBackground, marginRight: 10, },
+    backButton: { 
+        position: 'absolute', 
+        top: 40, 
+        left: 15, 
+        zIndex: 10, 
+        backgroundColor: 'rgba(0,0,0,0.5)', 
+        borderRadius: 20, 
+        padding: 5 
+    },
+    groupInfoBox: { 
+        paddingHorizontal: 15, 
+        paddingTop: 10 
+    },
+    groupHeaderRow: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        marginBottom: 10, 
+        marginTop: -50 
+    },
+    titleContainer: { 
+        flex: 1, 
+        marginLeft: 10 
+    },
+    groupTitleText: { 
+        color: COLORS.white, 
+        fontSize: 22, 
+        fontWeight: '900', 
+        marginBottom: 2 
+    },
+    groupSubtitleText: { 
+        color: COLORS.grayText, 
+        fontSize: 14, 
+        fontWeight: '500' 
+    },
+    groupDescriptionText: { 
+        color: COLORS.white, 
+        fontSize: 14, 
+        fontWeight: '400', 
+        marginBottom: 15, 
+        marginTop: 5, 
+        lineHeight: 20 
+    },
+    groupContentRow: { 
+        flexDirection: 'row', 
+        alignItems: 'flex-start' 
+    },
+
+    profileImage: { 
+        width: 80, 
+        height: 80, 
+        borderRadius: 40, 
+        borderWidth: 3, 
+        borderColor: COLORS.darkerBackground, 
+        backgroundColor: COLORS.inputBackground, 
+        marginRight: 10 
+    },
     profileImageInitial: {
         width: 80, 
         height: 80, 
@@ -1168,9 +1314,17 @@ const styles = StyleSheet.create({
         fontSize: 30,
     },
 
-    statsAndActions: { flex: 1, },
-    statsRow: { marginBottom: 8, },
-    statText: { color: COLORS.grayText, fontSize: 13, fontWeight: '600', },
+    statsAndActions: { 
+        flex: 1 
+    },
+    statsRow: { 
+        marginBottom: 8 
+    },
+    statText: { 
+        color: COLORS.grayText, 
+        fontSize: 13, 
+        fontWeight: '600' 
+    },
     actionButtonsRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -1178,19 +1332,76 @@ const styles = StyleSheet.create({
         gap: 8,
         marginBottom: 10,
     },
-    liveBadge: { backgroundColor: COLORS.red, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginRight: 5, },
-    liveBadgeText: { color: COLORS.white, fontWeight: '700', fontSize: 12, },
-    streamActionButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.purple, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, },
-    actionIcon: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.inputBackground, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, },
-    actionText: { color: COLORS.white, fontSize: 12, fontWeight: '600', marginLeft: 5, },
-    tabContainer: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: COLORS.darkerBackground, borderBottomWidth: 1, borderBottomColor: COLORS.inputBackground, paddingVertical: 5, },
-    tabButton: { paddingVertical: 10, paddingHorizontal: 15, marginHorizontal: 5, },
-    activeTabButton: { borderBottomWidth: 3, borderBottomColor: COLORS.purple, },
-    tabText: { color: COLORS.grayText, fontWeight: '600', },
-    activeTabText: { color: COLORS.white, fontWeight: '700', },
-    contentArea: { paddingHorizontal: 15, paddingTop: 10, },
-    createPostContainer: { backgroundColor: COLORS.darkerBackground, borderRadius: 10, padding: 10, marginBottom: 15, },
-    
+    liveBadge: { 
+        backgroundColor: COLORS.red, 
+        paddingHorizontal: 8, 
+        paddingVertical: 4, 
+        borderRadius: 6, 
+        marginRight: 5 
+    },
+    liveBadgeText: { 
+        color: COLORS.white, 
+        fontWeight: '700', 
+        fontSize: 12 
+    },
+    streamActionButton: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        backgroundColor: COLORS.purple, 
+        paddingHorizontal: 10, 
+        paddingVertical: 5, 
+        borderRadius: 8 
+    },
+    actionIcon: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        backgroundColor: COLORS.inputBackground, 
+        paddingHorizontal: 10, 
+        paddingVertical: 5, 
+        borderRadius: 8 
+    },
+    actionText: { 
+        color: COLORS.white, 
+        fontSize: 12, 
+        fontWeight: '600', 
+        marginLeft: 5 
+    },
+    tabContainer: { 
+        flexDirection: 'row', 
+        justifyContent: 'space-around', 
+        backgroundColor: COLORS.darkerBackground, 
+        borderBottomWidth: 1, 
+        borderBottomColor: COLORS.inputBackground, 
+        paddingVertical: 5 
+    },
+    tabButton: { 
+        paddingVertical: 10, 
+        paddingHorizontal: 15, 
+        marginHorizontal: 5 
+    },
+    activeTabButton: { 
+        borderBottomWidth: 3, 
+        borderBottomColor: COLORS.purple 
+    },
+    tabText: { 
+        color: COLORS.grayText, 
+        fontWeight: '600' 
+    },
+    activeTabText: { 
+        color: COLORS.white, 
+        fontWeight: '700' 
+    },
+    contentArea: { 
+        paddingHorizontal: 15, 
+        paddingTop: 10 
+    },
+    createPostContainer: { 
+        backgroundColor: COLORS.darkerBackground, 
+        borderRadius: 10, 
+        padding: 10, 
+        marginBottom: 15 
+    },
+
     userAvatarInitialContainer: {
         position: 'absolute', 
         top: 15, 
@@ -1207,19 +1418,79 @@ const styles = StyleSheet.create({
         fontWeight: '700', 
         fontSize: 14,
     },
-    postInput: { minHeight: 60, paddingLeft: 50, color: COLORS.white, fontSize: 15, paddingTop: 5, paddingBottom: 5, },
-    postActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, borderTopWidth: 1, borderTopColor: COLORS.inputBackground, marginTop: 5, },
-    imageButton: { flexDirection: 'row', alignItems: 'center', padding: 5, },
-    imageButtonText: { color: COLORS.grayText, marginLeft: 5, fontSize: 13, },
-    postButton: { backgroundColor: COLORS.purple, paddingVertical: 8, paddingHorizontal: 15, borderRadius: 8, },
-    postButtonText: { color: COLORS.white, fontWeight: '700', },
+    postInput: { 
+        minHeight: 60, 
+        paddingLeft: 50, 
+        color: COLORS.white, 
+        fontSize: 15, 
+        paddingTop: 5, 
+        paddingBottom: 5 
+    },
+    postActions: { 
+        flexDirection: 'row', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        paddingTop: 10, 
+        borderTopWidth: 1, 
+        borderTopColor: COLORS.inputBackground, 
+        marginTop: 5 
+    },
+    imageButton: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        padding: 5 
+    },
+    imageButtonText: { 
+        color: COLORS.grayText, 
+        marginLeft: 5, 
+        fontSize: 13 
+    },
+    postButton: { 
+        backgroundColor: COLORS.purple, 
+        paddingVertical: 8, 
+        paddingHorizontal: 15, 
+        borderRadius: 8 
+    },
+    postButtonText: { 
+        color: COLORS.white, 
+        fontWeight: '700' 
+    },
     membersListContainer: {},
-    membersCountText: { color: COLORS.white, fontSize: 18, fontWeight: '700', marginBottom: 2, },
-    membersCountSubText: { color: COLORS.grayText, fontSize: 13, fontWeight: '500', marginBottom: 15, },
-    placeholderContainer: { padding: 40, alignItems: 'center', backgroundColor: COLORS.darkerBackground, borderRadius: 10, marginTop: 20, },
-    placeholderText: { color: COLORS.grayText, textAlign: 'center', fontSize: 15, marginBottom: 20, },
-    eventActionButton: { backgroundColor: COLORS.purple, paddingVertical: 10, paddingHorizontal: 20, borderRadius: 10, },
-    eventActionButtonText: { color: COLORS.white, fontWeight: '700', },
+    membersCountText: { 
+        color: COLORS.white, 
+        fontSize: 18, 
+        fontWeight: '700', 
+        marginBottom: 2 
+    },
+    membersCountSubText: { 
+        color: COLORS.grayText, 
+        fontSize: 13, 
+        fontWeight: '500', 
+        marginBottom: 15 
+    },
+    placeholderContainer: { 
+        padding: 40, 
+        alignItems: 'center', 
+        backgroundColor: COLORS.darkerBackground, 
+        borderRadius: 10, 
+        marginTop: 20 
+    },
+    placeholderText: { 
+        color: COLORS.grayText, 
+        textAlign: 'center', 
+        fontSize: 15, 
+        marginBottom: 20 
+    },
+    eventActionButton: { 
+        backgroundColor: COLORS.purple, 
+        paddingVertical: 10, 
+        paddingHorizontal: 20, 
+        borderRadius: 10 
+    },
+    eventActionButtonText: { 
+        color: COLORS.white, 
+        fontWeight: '700' 
+    },
     centeredView: {
         flex: 1,
         justifyContent: 'center',
@@ -1254,6 +1525,22 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         fontSize: 14,
     },
+    actionButtonContainer: { 
+        alignItems: 'center', 
+        marginBottom: 20 
+    },
+    scheduleButton: { 
+        backgroundColor: COLORS.purple, 
+        paddingHorizontal: 24, 
+        paddingVertical: 12, 
+        borderRadius: 12, 
+        elevation: 5 
+    },
+    scheduleButtonText: { 
+        color: COLORS.white, 
+        fontSize: 16, 
+        fontWeight: 'bold' 
+    },
 
     initialFallbackContainer: {
         backgroundColor: COLORS.inputBackground, 
@@ -1263,6 +1550,7 @@ const styles = StyleSheet.create({
     initialFallbackText: {
         color: COLORS.white,
     },
+
 });
 
 export default GroupDetailView;

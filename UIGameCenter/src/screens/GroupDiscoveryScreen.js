@@ -202,13 +202,7 @@ const GroupDiscoveryScreen = ({ navigation }) => {
                             <Text style={styles.actionButtonText}>Crear Grupo</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity
-                            style={[styles.actionButton, styles.scheduleEventButton, styles.secondaryActionButton]}
-                            onPress={() => navigation.navigate('CreateEvent')} 
-                        >
-                            <Ionicons name="calendar-outline" size={20} color={COLORS.purple} />
-                            <Text style={[styles.actionButtonText, styles.secondaryActionButtonText]}>Programar Evento</Text>
-                        </TouchableOpacity>
+                    
                     </View>
                 </View>
 
