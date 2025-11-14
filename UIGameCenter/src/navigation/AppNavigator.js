@@ -18,7 +18,7 @@ import EditGroupScreen from '../screens/EditGroupScreen';
 import GameDetailsScreen from '../components/GameDetailsScreen';
 
 // === EVENTOS ===
-import ProgramarEventoScreen from '../screens/CreateEventScreen'; // ← NUEVA PANTALLA
+import CreateEventScreen from '../screens/CreateEventScreen'; // ← NUEVA PANTALLA
 import EventDetailScreen from '../screens/EventDetailScreen';         // ← DETALLE DEL EVENTO
 
 const Stack = createNativeStackNavigator();
@@ -41,9 +41,10 @@ const AppNavigator = () => {
         {/* === GRUPOS === */}
         <Stack.Screen name="GroupDetail" component={GroupDetailView} />
         <Stack.Screen name="CreateGroup" component={CreateGroupScreen} />
-       <Stack.Screen name="EditGroupScreen" component={EditGroupScreen} />
+        <Stack.Screen name="EditGroupScreen" component={EditGroupScreen} />
         <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
         <Stack.Screen name="GameDetails" component={GameDetailsScreen} />
+        <Stack.Screen name="EventDetail" component={EventDetailScreen} />
     
         <Stack.Screen name="Profile">
           {props => (
